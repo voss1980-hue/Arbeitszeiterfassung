@@ -1,0 +1,517 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Arbeitszeiterfassung</title>
+    <style>
+        :root {
+            --bg-color: #f2f2f6;
+            --dark-bar: #2b2b2b;
+            --accent-blue: #2980b9;
+            --accent-green: #27ae60;
+            --accent-red: #c0392b;
+            --card-bg: #ffffff;
+            --text-dark: #333333;
+            --border-color: #cccccc;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            margin: 0;
+            background-color: var(--bg-color);
+            color: var(--text-dark);
+            -webkit-font-smoothing: antialiased;
+        }
+
+        /* Top Bar */
+        .top-bar {
+            background-color: var(--dark-bar);
+            color: white;
+            padding: 15px 20px;
+            font-size: 1.2em;
+            font-weight: 600;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+
+        /* Übersicht (Überstunden / Urlaub) */
+        .uebersicht-container {
+            background-color: #2c3e50;
+            color: white;
+            padding: 15px;
+            display: flex;
+            justify-content: space-around;
+            text-align: center;
+        }
+        .uebersicht-box h3 { 
+            margin: 0; 
+            font-size: 0.9em; 
+            font-weight: normal; 
+            color: #bdc3c7; 
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+        .uebersicht-box p { margin: 5px 0 0 0; font-size: 1.5em; font-weight: bold; }
+        .edit-btn { 
+            font-size: 0.7em; 
+            background: rgba(255,255,255,0.2); 
+            color: white; 
+            border: none; 
+            padding: 4px 8px; 
+            border-radius: 4px; 
+            cursor: pointer;
+        }
+        
+        /* Statistik für den Tag */
+        .stats-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            background-color: #e2dfe1;
+            border-bottom: 1px solid var(--border-color);
+        }
+        .firma-box { 
+            padding: 12px; 
+            border-right: 1px solid var(--border-color); 
+            font-size: 0.9em; 
+            color: #555; 
+            font-weight: bold; 
+        }
+        .saldo-box { 
+            padding: 12px; 
+            background-color: #eceaed; 
+            font-size: 0.95em; 
+        }
+        .saldo-row { 
+            display: flex; 
+            justify-content: space-between; 
+            margin-bottom: 4px; 
+        }
+
+        /* Eingabebereich Tag */
+        .day-container { 
+            padding: 15px; 
+        }
+        .day-header { 
+            display: flex; 
+            justify-content: space-between; 
+            font-weight: bold; 
+            margin-bottom: 15px; 
+            border-bottom: 1px solid var(--border-color); 
+            padding-bottom: 8px; 
+            color: #444;
+        }
+        
+        .schicht-row {
+            display: flex;
+            flex-direction: column;
+            background: var(--card-bg);
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+        }
+        .schicht-header { 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center; 
+            width: 100%; 
+        }
+        select, input[type="time"], input[type="number"] { 
+            padding: 10px; 
+            border: 1px solid var(--border-color); 
+            background: #f9f9f9; 
+            font-size: 1em; 
+            border-radius: 6px; 
+        }
+        select { width: 55%; text-align: right; }
+        
+        /* Zeiteingabe & Pausen */
+        .zeit-eingabe {
+            display: none;
+            flex-direction: column;
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 1px dashed var(--border-color);
+            gap: 12px;
+        }
+        .zeit-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .pause-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: #fff8e1;
+            padding: 10px;
+            border-radius: 6px;
+            border: 1px solid #ffe082;
+        }
+        .pause-row input {
+            width: 70px;
+            text-align: center;
+        }
+
+        /* Schnellwahl Buttons (Presets) */
+        .preset-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 5px;
+        }
+        .preset-btn {
+            background-color: #ecf0f1;
+            border: 1px solid #bdc3c7;
+            padding: 6px 10px;
+            border-radius: 4px;
+            font-size: 0.85em;
+            color: #2c3e50;
+            cursor: pointer;
+        }
+        .preset-btn:active {
+            background-color: #bdc3c7;
+        }
+        
+        .btn-save {
+            background-color: var(--accent-green);
+            color: white;
+            border: none;
+            padding: 16px;
+            width: 100%;
+            font-size: 1.1em;
+            border-radius: 8px;
+            margin-top: 20px;
+            font-weight: bold;
+            box-shadow: 0 4px 6px rgba(39, 174, 96, 0.2);
+            cursor: pointer;
+        }
+        .btn-save:active { transform: scale(0.98); }
+
+        /* Custom Modal (Ersetzt prompt) */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.5);
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+        .modal-box {
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            width: 80%;
+            max-width: 350px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+        }
+        .modal-box h3 { margin-top: 0; }
+        .modal-box input {
+            width: 100%;
+            box-sizing: border-box;
+            margin-bottom: 15px;
+        }
+        .modal-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+        }
+        .btn-cancel { background: #e74c3c; color: white; border: none; padding: 8px 15px; border-radius: 6px; }
+        .btn-confirm { background: var(--accent-blue); color: white; border: none; padding: 8px 15px; border-radius: 6px; }
+
+        /* Toast Message (Ersetzt alert) */
+        .toast {
+            visibility: hidden;
+            min-width: 250px;
+            margin-left: -125px;
+            background-color: #333;
+            color: #fff;
+            text-align: center;
+            border-radius: 8px;
+            padding: 16px;
+            position: fixed;
+            z-index: 1001;
+            left: 50%;
+            bottom: 30px;
+            font-size: 0.9em;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            opacity: 0;
+            transition: opacity 0.3s, bottom 0.3s;
+        }
+        .toast.show {
+            visibility: visible;
+            opacity: 1;
+            bottom: 50px;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="top-bar">
+        <span>Arbeitszeiterfassung</span>
+    </div>
+
+    <!-- Konto-Übersicht -->
+    <div class="uebersicht-container">
+        <div class="uebersicht-box">
+            <h3>Überstunden <button class="edit-btn" onclick="openModal('ueberstunden')">✎</button></h3>
+            <p id="gesamt-ueberstunden">0.00 h</p>
+        </div>
+        <div class="uebersicht-box">
+            <h3>Urlaubstage <button class="edit-btn" onclick="openModal('urlaub')">✎</button></h3>
+            <p id="gesamt-urlaub">30</p>
+        </div>
+    </div>
+
+    <!-- Tages-Statistik -->
+    <div class="stats-container">
+        <div class="firma-box">
+            Dahl-Verpackungen GmbH<br><br>
+            <span style="font-weight: normal; font-size: 0.85em;">Heutiges Ziel: <br><span id="soll-heute" style="font-weight:bold; color: var(--text-dark);">0.00 h</span></span>
+        </div>
+        <div class="saldo-box">
+            <div class="saldo-row"><span>Tages-Soll</span> <span style="color: var(--accent-blue); font-weight: bold;" id="tages-soll-anzeige">8,50 h</span></div>
+            <div class="saldo-row"><span>Tages-Ist</span> <span style="font-weight: bold;" id="tages-ist-anzeige">0,00 h</span></div>
+            <div class="saldo-row"><span>Tages-Saldo</span> <span style="font-weight: bold;" id="tages-saldo-anzeige">0,00 h</span></div>
+        </div>
+    </div>
+
+    <!-- Eingabe für den Tag -->
+    <div class="day-container">
+        <div class="day-header">
+            <span id="wochentag">Lade...</span>
+            <span id="datum">Lade...</span>
+            <span id="kalenderwoche">Lade...</span>
+        </div>
+
+        <div class="schicht-row">
+            <div class="schicht-header">
+                <strong>Status für Heute</strong>
+                <select id="schicht-typ" onchange="toggleZeitEingabe()">
+                    <option value="keine">keine Schicht</option>
+                    <option value="arbeit">Arbeitszeit</option>
+                    <option value="urlaub">Ferien/Urlaub</option>
+                    <option value="krank">Krank</option>
+                    <option value="feiertag">Feiertag</option>
+                    <option value="abbau">Überstundenabbau</option>
+                </select>
+            </div>
+            
+            <div class="zeit-eingabe" id="zeit-box">
+                <!-- Schnellwahl -->
+                <div style="font-size: 0.85em; color: #666;">Schnellauswahl:</div>
+                <div class="preset-container">
+                    <button class="preset-btn" onclick="setPreset('06:00', '14:30', 0.5)">06:00 - 14:30</button>
+                    <button class="preset-btn" onclick="setPreset('06:30', '15:30', 0.5)">06:30 - 15:30</button>
+                    <button class="preset-btn" onclick="setPreset('07:00', '16:00', 0.5)">07:00 - 16:00</button>
+                </div>
+
+                <div class="zeit-row">
+                    <span>Von:</span>
+                    <input type="time" id="start-zeit" value="06:30">
+                </div>
+                <div class="zeit-row">
+                    <span>Bis:</span>
+                    <input type="time" id="end-zeit" value="15:30">
+                </div>
+                
+                <div class="pause-row">
+                    <span>Pausenzeit abziehen (Std):</span>
+                    <input type="number" id="pause-zeit" value="0.5" step="0.25" min="0">
+                </div>
+            </div>
+        </div>
+
+        <button class="btn-save" onclick="tagSpeichern()">Tag berechnen & speichern</button>
+    </div>
+
+    <!-- Custom Modal für Werteeingabe -->
+    <div class="modal-overlay" id="edit-modal">
+        <div class="modal-box">
+            <h3 id="modal-title">Wert ändern</h3>
+            <input type="number" id="modal-input" step="0.1">
+            <div class="modal-actions">
+                <button class="btn-cancel" onclick="closeModal()">Abbrechen</button>
+                <button class="btn-confirm" onclick="saveModal()">Speichern</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Nachricht -->
+    <div id="toast">Tag erfolgreich gespeichert!</div>
+
+    <script>
+        // Lokale Speicherwerte laden
+        let ueberstundenKonto = parseFloat(localStorage.getItem('ueberstundenKonto')) || 0.0;
+        let urlaubsKonto = parseFloat(localStorage.getItem('urlaubsKonto')) || 30;
+        
+        let heutigesSoll = 0;
+        const heute = new Date();
+        const tagNummer = heute.getDay(); // 0=Sonntag, 1=Montag... 6=Samstag
+        
+        // Modal-State
+        let currentModalType = '';
+
+        function init() {
+            // Datum und Wochentag
+            const wochentage = ['Sonntag', 'Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag', 'Samstag'];
+            document.getElementById('wochentag').textContent = wochentage[tagNummer];
+            
+            const tag = String(heute.getDate()).padStart(2, '0');
+            const monat = String(heute.getMonth() + 1).padStart(2, '0');
+            const jahr = String(heute.getFullYear()).slice(-2);
+            document.getElementById('datum').textContent = `${tag}.${monat}.${jahr}`;
+            
+            // Kalenderwoche berechnen
+            document.getElementById('kalenderwoche').textContent = `KW ${berechneKalenderwoche(heute)}`;
+            
+            // Soll-Stunden für heute bestimmen (Mo-Fr = 8.5h, Sa-So = 0h)
+            if(tagNummer >= 1 && tagNummer <= 5) {
+                heutigesSoll = 8.5;
+            } else {
+                heutigesSoll = 0.0;
+            }
+            
+            document.getElementById('tages-soll-anzeige').textContent = formatHours(heutigesSoll);
+            document.getElementById('soll-heute').textContent = formatHours(heutigesSoll);
+            
+            updateDisplay();
+        }
+
+        function berechneKalenderwoche(datum) {
+            const d = new Date(Date.UTC(datum.getFullYear(), datum.getMonth(), datum.getDate()));
+            const tagNum = d.getUTCDay() || 7;
+            d.setUTCDate(d.getUTCDate() + 4 - tagNum);
+            const jahresanfang = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+            return Math.ceil((((d - jahresanfang) / 86400000) + 1) / 7);
+        }
+
+        function formatHours(num) {
+            return num.toFixed(2).replace('.', ',') + ' h';
+        }
+
+        function updateDisplay() {
+            let farbe = ueberstundenKonto >= 0 ? "var(--accent-blue)" : "var(--accent-red)";
+            let usDisplay = document.getElementById('gesamt-ueberstunden');
+            usDisplay.textContent = formatHours(ueberstundenKonto);
+            usDisplay.style.color = farbe;
+            
+            document.getElementById('gesamt-urlaub').textContent = urlaubsKonto;
+            
+            localStorage.setItem('ueberstundenKonto', ueberstundenKonto);
+            localStorage.setItem('urlaubsKonto', urlaubsKonto);
+        }
+
+        function toggleZeitEingabe() {
+            const typ = document.getElementById('schicht-typ').value;
+            const zeitBox = document.getElementById('zeit-box');
+            if(typ === 'arbeit') {
+                zeitBox.style.display = 'flex';
+            } else {
+                zeitBox.style.display = 'none';
+            }
+        }
+
+        function setPreset(start, end, pause) {
+            document.getElementById('start-zeit').value = start;
+            document.getElementById('end-zeit').value = end;
+            document.getElementById('pause-zeit').value = pause;
+        }
+
+        function showToast(message) {
+            const toast = document.getElementById("toast");
+            toast.textContent = message;
+            toast.className = "toast show";
+            setTimeout(function(){ toast.className = toast.className.replace("show", ""); }, 3000);
+        }
+
+        function openModal(type) {
+            currentModalType = type;
+            const modal = document.getElementById('edit-modal');
+            const input = document.getElementById('modal-input');
+            const title = document.getElementById('modal-title');
+            
+            if(type === 'ueberstunden') {
+                title.textContent = "Überstunden-Stand anpassen";
+                input.value = ueberstundenKonto;
+            } else {
+                title.textContent = "Urlaubstage anpassen";
+                input.value = urlaubsKonto;
+            }
+            modal.style.display = 'flex';
+        }
+
+        function closeModal() {
+            document.getElementById('edit-modal').style.display = 'none';
+        }
+
+        function saveModal() {
+            const val = parseFloat(document.getElementById('modal-input').value.replace(',','.'));
+            if(!isNaN(val)) {
+                if(currentModalType === 'ueberstunden') {
+                    ueberstundenKonto = val;
+                } else {
+                    urlaubsKonto = val;
+                }
+                updateDisplay();
+                closeModal();
+                showToast("Erfolgreich geändert!");
+            }
+        }
+
+        function tagSpeichern() {
+            const typ = document.getElementById('schicht-typ').value;
+            let istStunden = 0;
+            let urlaubAbziehen = 0;
+
+            if (typ === 'arbeit') {
+                const start = document.getElementById('start-zeit').value.split(':');
+                const end = document.getElementById('end-zeit').value.split(':');
+                const pause = parseFloat(document.getElementById('pause-zeit').value) || 0;
+                
+                const startDezimal = parseInt(start[0]) + (parseInt(start[1]) / 60);
+                const endDezimal = parseInt(end[0]) + (parseInt(end[1]) / 60);
+                
+                istStunden = endDezimal - startDezimal - pause; 
+                if(istStunden < 0) istStunden = 0;
+                
+            } else if (typ === 'krank' || typ === 'urlaub' || typ === 'feiertag') {
+                istStunden = 8.0; // Chef zahlt nur 8 Stunden
+                if(typ === 'urlaub') urlaubAbziehen = 1;
+            } else if (typ === 'abbau') {
+                istStunden = 0; // Überstundenabbau (zieht Tagessoll vom Saldo ab)
+            } else if (typ === 'keine') {
+                istStunden = 0;
+            }
+
+            // Berechne Tages-Saldo
+            const tagesSaldo = istStunden - heutigesSoll;
+            
+            // Aufs Gesamtkonto addieren
+            ueberstundenKonto += tagesSaldo;
+            urlaubsKonto -= urlaubAbziehen;
+
+            // UI Aktualisieren
+            document.getElementById('tages-ist-anzeige').textContent = formatHours(istStunden);
+            
+            let saldoElement = document.getElementById('tages-saldo-anzeige');
+            saldoElement.textContent = formatHours(tagesSaldo);
+            saldoElement.style.color = tagesSaldo >= 0 ? "var(--accent-blue)" : "var(--accent-red)";
+
+            updateDisplay();
+            
+            // Meldung anzeigen, dass es geklappt hat (ohne lästiges alert)
+            let vorzeichen = tagesSaldo >= 0 ? "+" : "";
+            showToast(`Tag gespeichert! Saldo heute: ${vorzeichen}${tagesSaldo.toFixed(2)}h`);
+        }
+
+        // App starten
+        init();
+    </script>
+</body>
+</html>
