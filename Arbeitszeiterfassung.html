@@ -7,6 +7,14 @@
     <style>
         body { font-family: Arial, sans-serif; background-color: #f2f2f6; margin: 0; padding: 0; color: #333; }
         
+        /* FESTGEPINNTER KOPFBEREICH (STICKY) */
+        .sticky-header {
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+
         .global-stats { display: flex; justify-content: space-around; background: #2c3e50; padding: 20px 10px; color: white; text-align: center; border-bottom: 3px solid #34495e; }
         .stat-box { flex: 1; display: flex; flex-direction: column; align-items: center; }
         .stat-box span { font-size: 0.9em; color: #bdc3c7; margin-bottom: 5px; }
@@ -23,9 +31,9 @@
         .val-ist { color: #2c3e50; font-weight: bold; font-size: 1.1em; }
         .val-saldo { font-weight: bold; font-size: 1.1em; }
 
+        /* LISTENBEREICH */
         .day-list { padding: 10px; padding-bottom: 40px; }
         
-        /* Basis für alle Tage */
         .day-row { 
             display: flex; 
             justify-content: space-between; 
@@ -38,21 +46,19 @@
             background: #ffffff;
         }
 
-        /* 1. Wochenenden */
         .day-row.samstag { background: #faf4ec; border-left-color: #d8be9b; }
         .day-row.sonntag { background: #fdf0df; border-left-color: #c99c68; }
-
-        /* 2. Status-Farben */
         .day-row.status-arbeit { background: #ffffff; border-left-color: #3498db; }
         .day-row.status-urlaub { background: #eafaf1; border-left-color: #27ae60; }
         .day-row.status-krank { background: #fef9e7; border-left-color: #f39c12; }
         .day-row.status-feiertag { background: #f5eef8; border-left-color: #8e44ad; }
         .day-row.status-abbau { background: #e8f8f5; border-left-color: #16a085; }
 
-        /* 3. Hervorhebung Heute */
+        /* Hervorhebung und Auto-Scroll Anker für Heute */
         .day-row.heute { 
             outline: 2px solid #2980b9; 
             box-shadow: 0 2px 8px rgba(41, 128, 185, 0.3); 
+            scroll-margin-top: 230px; /* Hält den Tag unterhalb des festen Headers! */
         }
         .badge-heute {
             background: #2980b9;
@@ -65,15 +71,7 @@
             vertical-align: middle;
         }
 
-        /* Status-Badges */
-        .badge-typ {
-            display: inline-block;
-            font-size: 0.72em;
-            padding: 2px 7px;
-            border-radius: 4px;
-            font-weight: bold;
-            margin-right: 5px;
-        }
+        .badge-typ { display: inline-block; font-size: 0.72em; padding: 2px 7px; border-radius: 4px; font-weight: bold; margin-right: 5px; }
         .badge-arbeit { background: #ebf5fb; color: #2980b9; }
         .badge-urlaub { background: #d4efdf; color: #1e8449; }
         .badge-krank { background: #fdebd0; color: #b9770e; }
@@ -100,32 +98,34 @@
 </head>
 <body>
 
-    <div class="global-stats">
-        <div class="stat-box">
-            <span>Überstundenkonto</span>
-            <strong id="g-ueberstunden">0,00 h</strong>
-            <div style="display: flex; gap: 5px;">
-                <button class="btn-small" onclick="setStartUeberstunden()">Ändern</button>
-                <button class="btn-small btn-pay" onclick="auszahlen()">Auszahlen</button>
+    <div class="sticky-header">
+        <div class="global-stats">
+            <div class="stat-box">
+                <span>Überstundenkonto</span>
+                <strong id="g-ueberstunden">0,00 h</strong>
+                <div style="display: flex; gap: 5px;">
+                    <button class="btn-small" onclick="setStartUeberstunden()">Ändern</button>
+                    <button class="btn-small btn-pay" onclick="auszahlen()">Auszahlen</button>
+                </div>
+            </div>
+            <div class="stat-box" style="border-left: 1px solid #34495e;">
+                <span>Urlaubstage</span>
+                <strong id="g-urlaub">30</strong>
+                <button class="btn-small" onclick="setUrlaub()">Ändern</button>
             </div>
         </div>
-        <div class="stat-box" style="border-left: 1px solid #34495e;">
-            <span>Urlaubstage</span>
-            <strong id="g-urlaub">30</strong>
-            <button class="btn-small" onclick="setUrlaub()">Ändern</button>
+
+        <div class="month-nav">
+            <button onclick="changeMonth(-1)">&#9664;</button>
+            <div id="month-title">Lade...</div>
+            <button onclick="changeMonth(1)">&#9654;</button>
         </div>
-    </div>
 
-    <div class="month-nav">
-        <button onclick="changeMonth(-1)">&#9664;</button>
-        <div id="month-title">Lade...</div>
-        <button onclick="changeMonth(1)">&#9654;</button>
-    </div>
-
-    <div class="month-summary">
-        <div><span>Soll (Chef)</span><span class="val-soll" id="m-soll">0,00 h</span></div>
-        <div><span>Ist (Chef)</span><span class="val-ist" id="m-ist">0,00 h</span></div>
-        <div><span>Saldo (Chef)</span><span class="val-saldo" id="m-saldo">0,00 h</span></div>
+        <div class="month-summary">
+            <div><span>Soll (Chef)</span><span class="val-soll" id="m-soll">0,00 h</span></div>
+            <div><span>Ist (Chef)</span><span class="val-ist" id="m-ist">0,00 h</span></div>
+            <div><span>Saldo (Chef)</span><span class="val-saldo" id="m-saldo">0,00 h</span></div>
+        </div>
     </div>
 
     <div class="day-list" id="days-list"></div>
@@ -186,7 +186,6 @@
             let globalOvertime = settings.startUeberstunden - settings.ausbezahlt;
             let globalUrlaub = settings.urlaub;
             
-            // 1. Privates Überstundenkonto oben
             for (let key in data) {
                 let entry = data[key];
                 let dateObj = new Date(key);
@@ -208,7 +207,6 @@
             document.getElementById('g-ueberstunden').style.color = globalOvertime >= 0 ? '#3498db' : '#e74c3c';
             document.getElementById('g-urlaub').textContent = globalUrlaub;
             
-            // 2. Kalender-Monat
             let monthNames = ["Januar", "Februar", "März", "April", "Mai", "Juni", "Juli", "August", "September", "Oktober", "November", "Dezember"];
             document.getElementById('month-title').textContent = monthNames[displayMonth] + " " + displayYear;
             
@@ -379,7 +377,18 @@
             saveData(); closeModal(); render();
         }
 
+        // Automatisches Scrollen beim Laden
+        function scrollToHeute() {
+            setTimeout(() => {
+                let heuteEl = document.querySelector('.day-row.heute');
+                if (heuteEl) {
+                    heuteEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }
+            }, 200);
+        }
+
         render();
+        scrollToHeute();
     </script>
 </body>
 </html>
