@@ -24,15 +24,68 @@
         .val-saldo { font-weight: bold; font-size: 1.1em; }
 
         .day-list { padding: 10px; padding-bottom: 40px; }
-        .day-row { display: flex; justify-content: space-between; background: white; padding: 15px; margin-bottom: 8px; border-radius: 6px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); align-items: center; border-left: 5px solid transparent; }
-        .day-row.heute { border-left-color: #3498db; background: #ebf5fb; }
-        .day-row.wochenende { background: #fafafa; color: #95a5a6; }
-        .day-info { display: flex; flex-direction: column; width: 65%; }
-        .day-date { font-weight: bold; font-size: 1.05em; }
-        .day-desc { font-size: 0.85em; color: #7f8c8d; margin-top: 4px; }
-        .day-hours { font-weight: bold; font-size: 1.2em; text-align: right; width: 35%; }
+        
+        /* Basis für alle Tage */
+        .day-row { 
+            display: flex; 
+            justify-content: space-between; 
+            padding: 13px 15px; 
+            margin-bottom: 8px; 
+            border-radius: 6px; 
+            box-shadow: 0 1px 3px rgba(0,0,0,0.08); 
+            align-items: center; 
+            border-left: 6px solid #ccc;
+            background: #ffffff;
+        }
 
-        .modal-overlay { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.6); align-items: center; justify-content: center; padding: 20px; }
+        /* 1. Wochenenden */
+        .day-row.samstag { background: #faf4ec; border-left-color: #d8be9b; }
+        .day-row.sonntag { background: #fdf0df; border-left-color: #c99c68; }
+
+        /* 2. Status-Farben */
+        .day-row.status-arbeit { background: #ffffff; border-left-color: #3498db; }
+        .day-row.status-urlaub { background: #eafaf1; border-left-color: #27ae60; }
+        .day-row.status-krank { background: #fef9e7; border-left-color: #f39c12; }
+        .day-row.status-feiertag { background: #f5eef8; border-left-color: #8e44ad; }
+        .day-row.status-abbau { background: #e8f8f5; border-left-color: #16a085; }
+
+        /* 3. Hervorhebung Heute */
+        .day-row.heute { 
+            outline: 2px solid #2980b9; 
+            box-shadow: 0 2px 8px rgba(41, 128, 185, 0.3); 
+        }
+        .badge-heute {
+            background: #2980b9;
+            color: white;
+            font-size: 0.7em;
+            padding: 2px 6px;
+            border-radius: 10px;
+            margin-left: 6px;
+            font-weight: bold;
+            vertical-align: middle;
+        }
+
+        /* Status-Badges */
+        .badge-typ {
+            display: inline-block;
+            font-size: 0.72em;
+            padding: 2px 7px;
+            border-radius: 4px;
+            font-weight: bold;
+            margin-right: 5px;
+        }
+        .badge-arbeit { background: #ebf5fb; color: #2980b9; }
+        .badge-urlaub { background: #d4efdf; color: #1e8449; }
+        .badge-krank { background: #fdebd0; color: #b9770e; }
+        .badge-feiertag { background: #ebd7f5; color: #6c3483; }
+        .badge-abbau { background: #d1f2eb; color: #117864; }
+
+        .day-info { display: flex; flex-direction: column; width: 68%; }
+        .day-date { font-weight: bold; font-size: 1.05em; color: #2c3e50; }
+        .day-desc { font-size: 0.85em; color: #555; }
+        .day-hours { font-weight: bold; font-size: 1.2em; text-align: right; width: 32%; }
+
+        .modal-overlay { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.6); align-items: center; justify-content: center; padding: 20px; z-index: 1000; }
         .modal { background: white; width: 100%; max-width: 400px; padding: 20px; border-radius: 10px; box-shadow: 0 5px 15px rgba(0,0,0,0.3); }
         .modal h3 { margin-top: 0; margin-bottom: 15px; color: #2c3e50; border-bottom: 1px solid #eee; padding-bottom: 10px; }
         .input-group { margin-bottom: 15px; }
@@ -133,9 +186,7 @@
             let globalOvertime = settings.startUeberstunden - settings.ausbezahlt;
             let globalUrlaub = settings.urlaub;
             
-            // ==========================================
-            // 1. RECHNUNG FÜR DEIN PRIVATES KONTO (OBEN)
-            // ==========================================
+            // 1. Privates Überstundenkonto oben
             for (let key in data) {
                 let entry = data[key];
                 let dateObj = new Date(key);
@@ -143,28 +194,24 @@
 
                 if (entry.typ === 'arbeit') { 
                     let soll = isWeekend ? 0 : 8.5;
-                    globalOvertime += (entry.ist - soll); // Nur echte Arbeit verändert das Konto
+                    globalOvertime += (entry.ist - soll);
                 }
                 else if (entry.typ === 'abbau') { 
-                    if (!isWeekend) globalOvertime -= 8.5; // Du kaufst dir Freizeit mit deinem Guthaben
+                    if (!isWeekend) globalOvertime -= 8.5;
                 }
                 else if (entry.typ === 'urlaub') { 
                     if (!isWeekend) globalUrlaub -= 1; 
-                    // Überstunden bleiben absolut neutral! (+0)
                 }
-                // Krank und Feiertag tun hier absolut nichts. Sie sind für dich neutral.
             }
             
             document.getElementById('g-ueberstunden').textContent = globalOvertime.toFixed(2).replace('.', ',') + ' h';
             document.getElementById('g-ueberstunden').style.color = globalOvertime >= 0 ? '#3498db' : '#e74c3c';
             document.getElementById('g-urlaub').textContent = globalUrlaub;
             
+            // 2. Kalender-Monat
             let monthNames = ["Januar", "Februar", "März", "April", "Mai", "Juni", "Juli", "August", "September", "Oktober", "November", "Dezember"];
             document.getElementById('month-title').textContent = monthNames[displayMonth] + " " + displayYear;
             
-            // ==========================================
-            // 2. RECHNUNG FÜR DEN CHEF (KALENDER)
-            // ==========================================
             let daysInMonth = new Date(displayYear, displayMonth + 1, 0).getDate();
             let monatsSoll = 0;
             let monatsIst = 0;
@@ -175,7 +222,6 @@
                 let dayOfWeek = d.getDay();
                 let isWeekend = (dayOfWeek === 0 || dayOfWeek === 6);
                 
-                // Chef fordert stur 8,5h jeden Wochentag
                 let tagesSoll = isWeekend ? 0 : 8.5; 
                 monatsSoll += tagesSoll; 
                 
@@ -184,49 +230,65 @@
                 
                 let tagesIst = 0;
                 let anzeigeText = isWeekend ? "Wochenende" : "-";
-                let colorClass = isWeekend ? "#95a5a6" : "#bdc3c7";
+                let colorHours = isWeekend ? "#7f6e5d" : "#bdc3c7";
+                let statusClass = isWeekend ? (dayOfWeek === 6 ? "samstag" : "sonntag") : "wochentag";
+                let badgeHtml = "";
                 
                 if(entry) {
                     if(entry.typ === 'arbeit') { 
                         tagesIst = entry.ist; 
-                        anzeigeText = `${entry.start} - ${entry.end} Uhr (-${entry.pause}h Pause)`; 
-                        colorClass = "black"; 
+                        statusClass = "status-arbeit";
+                        anzeigeText = `${entry.start} - ${entry.end} Uhr (${entry.pause}h Pause)`; 
+                        badgeHtml = `<span class="badge-typ badge-arbeit">Arbeit</span>`;
+                        colorHours = "#2c3e50"; 
                     }
                     else if(entry.typ === 'urlaub') { 
-                        if(!isWeekend) tagesIst = 8.0; // Chef gibt dir nur 8.0h (führt zu -0.5 im Chef-Saldo)
-                        anzeigeText = "Urlaub (Chef zahlt 8,0h | Konto neutral)"; 
-                        colorClass = "#27ae60"; 
+                        if(!isWeekend) tagesIst = 8.0; 
+                        statusClass = "status-urlaub";
+                        anzeigeText = "Urlaub (8,0h | neutral)"; 
+                        badgeHtml = `<span class="badge-typ badge-urlaub">Urlaub</span>`;
+                        colorHours = "#1e8449"; 
                     }
                     else if(entry.typ === 'krank') { 
                         if(!isWeekend) tagesIst = 8.0; 
-                        anzeigeText = "Krank (Chef zahlt 8,0h | Konto neutral)"; 
-                        colorClass = "#27ae60"; 
+                        statusClass = "status-krank";
+                        anzeigeText = "Krank (8,0h | neutral)"; 
+                        badgeHtml = `<span class="badge-typ badge-krank">Krank</span>`;
+                        colorHours = "#b9770e"; 
                     }
                     else if(entry.typ === 'feiertag') { 
                         if(!isWeekend) tagesIst = 8.0; 
-                        anzeigeText = "Feiertag (Chef zahlt 8,0h | Konto neutral)"; 
-                        colorClass = "#27ae60"; 
+                        statusClass = "status-feiertag";
+                        anzeigeText = "Feiertag (8,0h | neutral)"; 
+                        badgeHtml = `<span class="badge-typ badge-feiertag">Feiertag</span>`;
+                        colorHours = "#6c3483"; 
                     }
                     else if(entry.typ === 'abbau') { 
-                        if(!isWeekend) tagesIst = 8.5; // Chef zahlt dir den Tag voll
-                        anzeigeText = "Überstundenabbau (Aus Guthaben bezahlt)"; 
-                        colorClass = "#e74c3c"; 
+                        if(!isWeekend) tagesIst = 8.5; 
+                        statusClass = "status-abbau";
+                        anzeigeText = "Überstundenabbau (-8,5h)"; 
+                        badgeHtml = `<span class="badge-typ badge-abbau">Abbau</span>`;
+                        colorHours = "#117864"; 
                     }
                 }
                 
                 monatsIst += tagesIst;
                 
                 let wochentage = ["So", "Mo", "Di", "Mi", "Do", "Fr", "Sa"];
-                let isHeute = (currentDate.getDate() === i && currentDate.getMonth() === displayMonth && currentDate.getFullYear() === displayYear) ? "heute" : "";
-                let isWochenendeClass = isWeekend ? "wochenende" : "";
+                let isHeute = (currentDate.getDate() === i && currentDate.getMonth() === displayMonth && currentDate.getFullYear() === displayYear);
+                let heuteClass = isHeute ? "heute" : "";
+                let heuteBadge = isHeute ? `<span class="badge-heute">HEUTE</span>` : "";
                 
                 dayListHtml += `
-                <div class="day-row ${isHeute} ${isWochenendeClass}" onclick="openModal('${key}', '${wochentage[dayOfWeek]}, ${String(i).padStart(2,'0')}. ${monthNames[displayMonth]}')">
+                <div class="day-row ${statusClass} ${heuteClass}" onclick="openModal('${key}', '${wochentage[dayOfWeek]}, ${String(i).padStart(2,'0')}. ${monthNames[displayMonth]}')">
                     <div class="day-info">
-                        <span class="day-date">${wochentage[dayOfWeek]}, ${String(i).padStart(2,'0')}.${String(displayMonth+1).padStart(2,'0')}.</span>
-                        <span class="day-desc">${anzeigeText}</span>
+                        <span class="day-date">${wochentage[dayOfWeek]}, ${String(i).padStart(2,'0')}.${String(displayMonth+1).padStart(2,'0')}.${heuteBadge}</span>
+                        <div style="margin-top: 3px;">
+                            ${badgeHtml}
+                            <span class="day-desc">${anzeigeText}</span>
+                        </div>
                     </div>
-                    <div class="day-hours" style="color: ${colorClass};">
+                    <div class="day-hours" style="color: ${colorHours};">
                         ${tagesIst.toFixed(2).replace('.', ',')} h
                     </div>
                 </div>`;
