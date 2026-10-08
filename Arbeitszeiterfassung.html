@@ -70,9 +70,9 @@
     </div>
 
     <div class="month-summary">
-        <div><span>Soll-Stunden</span><span class="val-soll" id="m-soll">0,00 h</span></div>
-        <div><span>Ist-Stunden</span><span class="val-ist" id="m-ist">0,00 h</span></div>
-        <div><span>Saldo</span><span class="val-saldo" id="m-saldo">0,00 h</span></div>
+        <div><span>Soll (Chef)</span><span class="val-soll" id="m-soll">0,00 h</span></div>
+        <div><span>Ist (Chef)</span><span class="val-ist" id="m-ist">0,00 h</span></div>
+        <div><span>Saldo (Chef)</span><span class="val-saldo" id="m-saldo">0,00 h</span></div>
     </div>
 
     <div class="day-list" id="days-list"></div>
@@ -86,10 +86,10 @@
                 <select id="edit-typ" onchange="toggleZeitFields()">
                     <option value="keine">Kein Eintrag</option>
                     <option value="arbeit">Arbeitszeit</option>
-                    <option value="urlaub">Ferien/Urlaub</option>
-                    <option value="krank">Krank</option>
-                    <option value="feiertag">Feiertag</option>
-                    <option value="abbau">Überstundenabbau (Freizeitausgleich)</option>
+                    <option value="urlaub">Ferien/Urlaub (Konto neutral)</option>
+                    <option value="krank">Krank (Konto neutral)</option>
+                    <option value="feiertag">Feiertag (Konto neutral)</option>
+                    <option value="abbau">Überstundenabbau (-8,5h Guthaben)</option>
                 </select>
             </div>
 
@@ -133,42 +133,38 @@
             let globalOvertime = settings.startUeberstunden - settings.ausbezahlt;
             let globalUrlaub = settings.urlaub;
             
-            // 1. Berechnung für die globalen Zähler ganz oben
+            // ==========================================
+            // 1. RECHNUNG FÜR DEIN PRIVATES KONTO (OBEN)
+            // ==========================================
             for (let key in data) {
                 let entry = data[key];
                 let dateObj = new Date(key);
                 let isWeekend = (dateObj.getDay() === 0 || dateObj.getDay() === 6);
-                let soll = isWeekend ? 0 : 8.5; 
-                let ist = 0;
 
-                if(entry.typ === 'arbeit') { 
-                    ist = entry.ist; 
+                if (entry.typ === 'arbeit') { 
+                    let soll = isWeekend ? 0 : 8.5;
+                    globalOvertime += (entry.ist - soll); // Nur echte Arbeit verändert das Konto
                 }
-                else if(entry.typ === 'urlaub') { 
-                    if (!isWeekend) { ist = 8.0; soll = 8.0; } // Neutraler Tag!
-                    globalUrlaub -= 1; 
+                else if (entry.typ === 'abbau') { 
+                    if (!isWeekend) globalOvertime -= 8.5; // Du kaufst dir Freizeit mit deinem Guthaben
                 }
-                else if(entry.typ === 'krank' || entry.typ === 'feiertag') { 
-                    if (!isWeekend) { ist = 8.0; soll = 8.0; } // Neutraler Tag!
+                else if (entry.typ === 'urlaub') { 
+                    if (!isWeekend) globalUrlaub -= 1; 
+                    // Überstunden bleiben absolut neutral! (+0)
                 }
-                else if(entry.typ === 'abbau') { 
-                    if (!isWeekend) {
-                        ist = 8.5; 
-                        globalOvertime -= 8.5; // Zieht vom Parkkonto ab
-                    }
-                }
-                
-                globalOvertime += (ist - soll);
+                // Krank und Feiertag tun hier absolut nichts. Sie sind für dich neutral.
             }
             
             document.getElementById('g-ueberstunden').textContent = globalOvertime.toFixed(2).replace('.', ',') + ' h';
             document.getElementById('g-ueberstunden').style.color = globalOvertime >= 0 ? '#3498db' : '#e74c3c';
             document.getElementById('g-urlaub').textContent = globalUrlaub;
             
-            // 2. Berechnung für den Kalender und den aktuellen Monat
             let monthNames = ["Januar", "Februar", "März", "April", "Mai", "Juni", "Juli", "August", "September", "Oktober", "November", "Dezember"];
             document.getElementById('month-title').textContent = monthNames[displayMonth] + " " + displayYear;
             
+            // ==========================================
+            // 2. RECHNUNG FÜR DEN CHEF (KALENDER)
+            // ==========================================
             let daysInMonth = new Date(displayYear, displayMonth + 1, 0).getDate();
             let monatsSoll = 0;
             let monatsIst = 0;
@@ -178,7 +174,10 @@
                 let d = new Date(displayYear, displayMonth, i);
                 let dayOfWeek = d.getDay();
                 let isWeekend = (dayOfWeek === 0 || dayOfWeek === 6);
-                let tagesSoll = isWeekend ? 0 : 8.5;
+                
+                // Chef fordert stur 8,5h jeden Wochentag
+                let tagesSoll = isWeekend ? 0 : 8.5; 
+                monatsSoll += tagesSoll; 
                 
                 let key = `${displayYear}-${String(displayMonth+1).padStart(2,'0')}-${String(i).padStart(2,'0')}`;
                 let entry = data[key];
@@ -194,28 +193,27 @@
                         colorClass = "black"; 
                     }
                     else if(entry.typ === 'urlaub') { 
-                        if(!isWeekend) { tagesIst = 8.0; tagesSoll = 8.0; }
-                        anzeigeText = "Urlaub (8,0h - neutral)"; 
-                        colorClass = "black"; 
+                        if(!isWeekend) tagesIst = 8.0; // Chef gibt dir nur 8.0h (führt zu -0.5 im Chef-Saldo)
+                        anzeigeText = "Urlaub (Chef zahlt 8,0h | Konto neutral)"; 
+                        colorClass = "#27ae60"; 
                     }
                     else if(entry.typ === 'krank') { 
-                        if(!isWeekend) { tagesIst = 8.0; tagesSoll = 8.0; }
-                        anzeigeText = "Krank (8,0h - neutral)"; 
-                        colorClass = "black"; 
+                        if(!isWeekend) tagesIst = 8.0; 
+                        anzeigeText = "Krank (Chef zahlt 8,0h | Konto neutral)"; 
+                        colorClass = "#27ae60"; 
                     }
                     else if(entry.typ === 'feiertag') { 
-                        if(!isWeekend) { tagesIst = 8.0; tagesSoll = 8.0; }
-                        anzeigeText = "Feiertag (8,0h - neutral)"; 
-                        colorClass = "black"; 
+                        if(!isWeekend) tagesIst = 8.0; 
+                        anzeigeText = "Feiertag (Chef zahlt 8,0h | Konto neutral)"; 
+                        colorClass = "#27ae60"; 
                     }
                     else if(entry.typ === 'abbau') { 
-                        if(!isWeekend) { tagesIst = 8.5; }
-                        anzeigeText = "Überstundenabbau (Guthaben verrechnet)"; 
+                        if(!isWeekend) tagesIst = 8.5; // Chef zahlt dir den Tag voll
+                        anzeigeText = "Überstundenabbau (Aus Guthaben bezahlt)"; 
                         colorClass = "#e74c3c"; 
                     }
                 }
                 
-                monatsSoll += tagesSoll; 
                 monatsIst += tagesIst;
                 
                 let wochentage = ["So", "Mo", "Di", "Mi", "Do", "Fr", "Sa"];
