@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Arbeitszeiterfassung V2</title>
+    <title>Arbeitszeiterfassung</title>
     <style>
         * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
         html, body { margin: 0; padding: 0; height: 100%; overflow: hidden; background-color: #f2f2f6; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; color: #2c3e50; }
@@ -87,8 +87,7 @@
 
             <div class="month-nav">
                 <button onclick="changeMonth(-1)">&#9664;</button>
-                <!-- WICHTIG: Hier steht jetzt in ORANGE "Wird geladen (V2)..." -->
-                <div id="month-title" style="color: #e67e22;">Wird geladen (V2)...</div>
+                <div id="month-title">Monat wird geladen...</div>
                 <button onclick="changeMonth(1)">&#9654;</button>
             </div>
 
@@ -143,7 +142,6 @@
     </div>
 
     <script>
-        // Fängt JEDEN Syntax- oder Systemfehler gnadenlos ab und zeigt ihn rot an
         window.onerror = function(msg, url, line, col, error) {
             var errDiv = document.getElementById('debug-error');
             errDiv.style.display = 'block';
@@ -214,9 +212,7 @@
 
             var monthNames = ["Januar", "Februar", "März", "April", "Mai", "Juni", "Juli", "August", "September", "Oktober", "November", "Dezember"];
             
-            // Setzt den Titel zurück auf schwarz, wenn er fertig geladen hat
             document.getElementById('month-title').textContent = monthNames[displayMonth] + " " + displayYear;
-            document.getElementById('month-title').style.color = "#2c3e50"; 
 
             var daysInMonth = new Date(displayYear, displayMonth + 1, 0).getDate();
             var monatsSoll = 0;
@@ -284,7 +280,7 @@
                 var dateString = wochentage[dayOfWeek] + ", " + String(i).padStart(2, '0') + "." + String(displayMonth + 1).padStart(2, '0') + ".";
                 var modalDateString = wochentage[dayOfWeek] + ", " + String(i).padStart(2, '0') + ". " + monthNames[displayMonth];
 
-                dayListHtml += "<div class='day-row " + statusClass + " " + heuteClass + "' onclick=\"openModal('" + key + "', '" + modalDateString + "')\">";
+                dayListHtml += "<div class='day-row " + statusClass + " " + heuteClass + "' onclick="openModal('" + key + "', '" + modalDateString + "')">";
                 dayListHtml += "<div class='day-info'>";
                 dayListHtml += "<span class='day-date'>" + dateString + heuteBadge + "</span>";
                 dayListHtml += "<div style='margin-top: 3px;'>" + badgeHtml + "<span class='day-desc'>" + anzeigeText + "</span></div>";
@@ -394,9 +390,11 @@
                 var heuteEl = document.querySelector('.day-row.heute');
                 var listContainer = document.getElementById('days-list');
                 if (heuteEl && listContainer) {
-                    listContainer.scrollTop = heuteEl.offsetTop - 15;
+                    var containerTop = listContainer.getBoundingClientRect().top;
+                    var elementTop = heuteEl.getBoundingClientRect().top;
+                    listContainer.scrollTop = listContainer.scrollTop + (elementTop - containerTop) - 15;
                 }
-            }, 250);
+            }, 300);
         }
 
         // START!
