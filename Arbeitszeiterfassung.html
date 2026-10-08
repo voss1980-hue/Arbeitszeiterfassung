@@ -5,14 +5,25 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Zeiterfassung Pro</title>
     <style>
-        body { font-family: Arial, sans-serif; background-color: #f2f2f6; margin: 0; padding: 0; color: #333; }
+        /* 1. BODY UMBAU: Die App nimmt exakt 100% der Höhe ein und darf außen nicht scrollen */
+        body { 
+            font-family: Arial, sans-serif; 
+            background-color: #f2f2f6; 
+            margin: 0; 
+            padding: 0; 
+            color: #333; 
+            height: 100vh; 
+            display: flex; 
+            flex-direction: column; 
+            overflow: hidden; 
+        }
         
-        /* FESTGEPINNTER KOPFBEREICH (STICKY) */
+        /* 2. HEADER UMBAU: Fixierter Block, der niemals scrollt */
         .sticky-header {
-            position: sticky;
-            top: 0;
+            flex-shrink: 0;
             z-index: 100;
             box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            background: #f2f2f6;
         }
 
         .global-stats { display: flex; justify-content: space-around; background: #2c3e50; padding: 20px 10px; color: white; text-align: center; border-bottom: 3px solid #34495e; }
@@ -31,8 +42,14 @@
         .val-ist { color: #2c3e50; font-weight: bold; font-size: 1.1em; }
         .val-saldo { font-weight: bold; font-size: 1.1em; }
 
-        /* LISTENBEREICH */
-        .day-list { padding: 10px; padding-bottom: 40px; }
+        /* 3. LISTEN UMBAU: Nur dieser Bereich darf scrollen! */
+        .day-list { 
+            flex: 1; 
+            overflow-y: auto; 
+            padding: 10px; 
+            padding-bottom: 40px; 
+            position: relative;
+        }
         
         .day-row { 
             display: flex; 
@@ -54,11 +71,9 @@
         .day-row.status-feiertag { background: #f5eef8; border-left-color: #8e44ad; }
         .day-row.status-abbau { background: #e8f8f5; border-left-color: #16a085; }
 
-        /* Hervorhebung und Auto-Scroll Anker für Heute */
         .day-row.heute { 
             outline: 2px solid #2980b9; 
             box-shadow: 0 2px 8px rgba(41, 128, 185, 0.3); 
-            scroll-margin-top: 230px; /* Hält den Tag unterhalb des festen Headers! */
         }
         .badge-heute {
             background: #2980b9;
@@ -98,7 +113,7 @@
 </head>
 <body>
 
-    <div class="sticky-header">
+    <div class="sticky-header" id="main-header">
         <div class="global-stats">
             <div class="stat-box">
                 <span>Überstundenkonto</span>
@@ -377,18 +392,8 @@
             saveData(); closeModal(); render();
         }
 
-        // Automatisches Scrollen beim Laden
+        // Neue Logik: Scrollt NUR noch die Liste, nicht mehr das Obsidian-Fenster
         function scrollToHeute() {
             setTimeout(() => {
                 let heuteEl = document.querySelector('.day-row.heute');
-                if (heuteEl) {
-                    heuteEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                }
-            }, 200);
-        }
-
-        render();
-        scrollToHeute();
-    </script>
-</body>
-</html>
+                let listContainer = document.getElementById('
