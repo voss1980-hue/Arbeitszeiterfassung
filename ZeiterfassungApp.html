@@ -4,6 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Arbeitszeiterfassung Final</title>
+    <!-- PDF Generator Bibliothek -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <style>
         * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
         html, body { margin: 0; padding: 0; height: 100%; overflow: hidden; background-color: #f2f2f6; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; color: #2c3e50; }
@@ -17,15 +19,24 @@
         .btn-small { background: #5d6d7e; color: white; border: none; padding: 4px 9px; border-radius: 4px; font-size: 0.72em; font-weight: bold; cursor: pointer; transition: background 0.2s; }
         .btn-small:active { opacity: 0.8; }
         .btn-pay { background: #e67e22; }
-        .month-nav { display: flex; justify-content: space-between; align-items: center; padding: 10px 16px; background: #ffffff; font-weight: 700; font-size: 1.15em; color: #2c3e50; border-bottom: 1px solid #e2e8f0; }
-        .month-nav button { background: #edf2f7; border: 1px solid #cbd5e0; color: #2b6cb0; font-size: 1.1em; width: 36px; height: 36px; border-radius: 8px; display: flex; align-items: center; justify-content: center; cursor: pointer; }
+        
+        .month-nav { display: flex; justify-content: space-between; align-items: center; padding: 12px 16px 8px 16px; background: #ffffff; color: #2c3e50; }
+        .month-nav button { background: #edf2f7; border: 1px solid #cbd5e0; color: #2b6cb0; font-size: 1.1em; width: 40px; height: 40px; border-radius: 8px; display: flex; align-items: center; justify-content: center; cursor: pointer; font-weight: bold; }
         .month-nav button:active { background: #e2e8f0; }
+        #month-title { font-size: 1.25em; font-weight: bold; }
+
+        /* NEUE AKTIONSLEISTE FÜR PDF & EMAIL */
+        .action-bar { display: flex; justify-content: center; gap: 10px; padding: 0 16px 12px 16px; background: #ffffff; border-bottom: 1px solid #e2e8f0; }
+        .btn-action { color: white; border: none; padding: 8px 12px; border-radius: 6px; font-weight: bold; font-size: 0.85em; cursor: pointer; flex: 1; text-align: center; transition: opacity 0.2s; }
+        .btn-action:active { opacity: 0.7; }
+
         .month-summary { display: flex; justify-content: space-around; background: #edf2f7; padding: 10px 8px; border-bottom: 1px solid #cbd5e0; }
         .month-summary div { display: flex; flex-direction: column; align-items: center; }
         .month-summary div span:first-child { font-size: 0.75em; color: #718096; font-weight: 600; text-transform: uppercase; margin-bottom: 2px; }
         .val-soll { color: #2b6cb0; font-weight: 700; font-size: 1.05em; }
         .val-ist { color: #2d3748; font-weight: 700; font-size: 1.05em; }
         .val-saldo { font-weight: 700; font-size: 1.05em; }
+        
         .day-list { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; padding: 10px 10px 60px 10px; }
         .day-row { display: flex; justify-content: space-between; align-items: center; background: #ffffff; padding: 12px 14px; margin-bottom: 8px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.06); border-left: 6px solid #cbd5e0; cursor: pointer; transition: transform 0.1s, box-shadow 0.1s; }
         .day-row:active { transform: scale(0.99); }
@@ -48,6 +59,7 @@
         .day-date { font-weight: 700; font-size: 1.02em; color: #2d3748; }
         .day-desc { font-size: 0.82em; color: #4a5568; margin-top: 3px; }
         .day-hours { font-weight: 700; font-size: 1.15em; text-align: right; width: 30%; }
+        
         .modal-overlay { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.55); align-items: center; justify-content: center; padding: 16px; z-index: 1000; }
         .modal { background: #ffffff; width: 100%; max-width: 380px; padding: 20px; border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.3); max-height: 90vh; overflow-y: auto; }
         .modal h3 { margin: 0 0 16px 0; color: #2d3748; border-bottom: 2px solid #edf2f7; padding-bottom: 10px; font-size: 1.15em; }
@@ -63,30 +75,11 @@
         .firma-row { display: flex; gap: 6px; }
         .firma-row select { flex: 1; }
         .btn-firma-edit { background: #4a5568; color: white; border: none; padding: 0 10px; border-radius: 8px; font-weight: bold; cursor: pointer; }
-
-        /* DRUCK- & PDF-LAYOUT */
-        #print-section { display: none; padding: 20px; font-family: Arial, sans-serif; color: black; background: white; }
-        #print-section h2 { margin-top: 0; border-bottom: 2px solid #333; padding-bottom: 5px; }
-        #print-section table { width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 12px; }
-        #print-section th, #print-section td { border: 1px solid #aaa; padding: 6px 8px; text-align: left; }
-        #print-section th { background-color: #eee; font-weight: bold; }
-        #print-section .saldo-table { width: 60%; margin-top: 20px; }
-
-        @media print {
-            html, body { height: auto !important; overflow: visible !important; background: white !important; }
-            .app-wrapper, .modal-overlay, #debug-error { display: none !important; }
-            #print-section { display: block !important; }
-            @page { margin: 1.5cm; }
-        }
     </style>
 </head>
 <body>
     <div id="debug-error" style="display:none; background: #e53e3e; color: white; padding: 20px; z-index: 9999; position: absolute; top:0; left:0; right:0;"></div>
 
-    <!-- ANSICHT FÜR PDF/DRUCK -->
-    <div id="print-section"></div>
-
-    <!-- NORMALE APP -->
     <div class="app-wrapper">
         <div class="header-container" id="main-header">
             <div class="global-stats">
@@ -107,16 +100,16 @@
                 </div>
             </div>
 
+            <!-- Aufgeräumte Navigation & Buttons -->
             <div class="month-nav">
                 <button onclick="changeMonth(-1)">&#9664;</button>
-                <div style="display: flex; flex-direction: column; align-items: center; gap: 4px;">
-                    <div id="month-title" style="color: #2c3e50; font-weight: bold;">Laden...</div>
-                    <div style="display: flex; gap: 5px;">
-                        <button class="btn-small" style="background: #2980b9;" onclick="printMonth()">📄 PDF</button>
-                        <button class="btn-small" style="background: #8e44ad;" onclick="prepareEmail()">📧 E-Mail</button>
-                    </div>
-                </div>
+                <div id="month-title">Laden...</div>
                 <button onclick="changeMonth(1)">&#9654;</button>
+            </div>
+            
+            <div class="action-bar">
+                <button class="btn-action" id="btn-pdf" style="background: #2980b9;" onclick="generatePDF()">Als PDF speichern</button>
+                <button class="btn-action" style="background: #8e44ad;" onclick="prepareEmail()">Als E-Mail senden</button>
             </div>
 
             <div class="month-summary">
@@ -488,8 +481,8 @@
             }, 300);
         }
 
-        // --- PDF / DRUCK FUNKTION ---
-        function printMonth() {
+        // --- NEUER PDF GENERATOR (html2pdf.js) ---
+        function generatePDF() {
             var defName = settings.mitarbeiterName || "Björn Voss";
             var mName = prompt("Dein Name für den PDF-Bericht:", defName);
             if (mName !== null) {
@@ -499,27 +492,26 @@
                 return; // Abbruch
             }
 
-            var printDiv = document.getElementById('print-section');
             var monthNames = ["Januar", "Februar", "März", "April", "Mai", "Juni", "Juli", "August", "September", "Oktober", "November", "Dezember"];
             var wochentage = ["So", "Mo", "Di", "Mi", "Do", "Fr", "Sa"];
             
             var currentOt = document.getElementById('g-ueberstunden').textContent;
             var currentUrlaub = document.getElementById('g-urlaub').textContent;
 
-            // Kopfbereich PDF
-            var html = '<h2>Arbeitszeitnachweis</h2>';
-            html += '<p><strong>Firma:</strong> Dahl-Verpackungen<br>';
+            // HTML für das PDF zusammenbauen
+            var html = '<div style="font-family: Arial, sans-serif; padding: 20px; color: black; background: white;">';
+            html += '<h2 style="border-bottom: 2px solid #333; padding-bottom: 5px; margin-top: 0;">Arbeitszeitnachweis</h2>';
+            html += '<p style="font-size: 14px;"><strong>Firma:</strong> Dahl-Verpackungen<br>';
             html += '<strong>Mitarbeiter:</strong> ' + settings.mitarbeiterName + '<br>';
             html += '<strong>Monat:</strong> ' + monthNames[displayMonth] + ' ' + displayYear + '</p>';
             
-            // Neuer Block für Urlaub und Überstundenkonto
             html += '<div style="background:#eee; padding:10px; margin-bottom:15px; border:1px solid #ccc; font-size:14px;">';
             html += '<strong>Aktueller Stand (Gesamt):</strong><br>';
             html += 'Überstundenkonto: ' + currentOt + ' | Resturlaub: ' + currentUrlaub + ' Tage';
             html += '</div>';
 
-            // Tabelle Start
-            html += '<table><tr><th>Datum</th><th>Status</th><th>Zeit</th><th>Ist (h)</th><th>Ort / Notiz</th></tr>';
+            html += '<table style="width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 12px;">';
+            html += '<tr><th style="border: 1px solid #aaa; padding: 6px; background: #eee; text-align: left;">Datum</th><th style="border: 1px solid #aaa; padding: 6px; background: #eee; text-align: left;">Status</th><th style="border: 1px solid #aaa; padding: 6px; background: #eee; text-align: left;">Zeit</th><th style="border: 1px solid #aaa; padding: 6px; background: #eee; text-align: left;">Ist (h)</th><th style="border: 1px solid #aaa; padding: 6px; background: #eee; text-align: left;">Ort / Notiz</th></tr>';
 
             var daysInMonth = new Date(displayYear, displayMonth + 1, 0).getDate();
             var monatsSoll = 0;
@@ -559,24 +551,40 @@
 
                 monatsIst += (istStr !== '0,00' ? parseFloat(istStr.replace(',', '.')) : 0);
 
-                html += '<tr><td>'+dateStr+'</td><td>'+statusStr+'</td><td>'+zeitStr+'</td><td>'+istStr+'</td><td>'+infoStr+'</td></tr>';
+                html += '<tr><td style="border: 1px solid #aaa; padding: 6px;">'+dateStr+'</td><td style="border: 1px solid #aaa; padding: 6px;">'+statusStr+'</td><td style="border: 1px solid #aaa; padding: 6px;">'+zeitStr+'</td><td style="border: 1px solid #aaa; padding: 6px;">'+istStr+'</td><td style="border: 1px solid #aaa; padding: 6px;">'+infoStr+'</td></tr>';
             }
 
             var monatsSaldo = monatsIst - monatsSoll;
 
-            // Tabelle Ende + Zusammenfassung
             html += '</table>';
-            html += '<table class="saldo-table"><tr><th>Soll gesamt</th><th>Ist gesamt</th><th>Saldo</th></tr>';
-            html += '<tr><td>'+monatsSoll.toFixed(2).replace('.', ',')+' h</td><td>'+monatsIst.toFixed(2).replace('.', ',')+' h</td><td>'+monatsSaldo.toFixed(2).replace('.', ',')+' h</td></tr></table>';
+            html += '<table style="width: 60%; border-collapse: collapse; margin-top: 20px; font-size: 12px;"><tr><th style="border: 1px solid #aaa; padding: 6px; background: #eee; text-align: left;">Soll gesamt</th><th style="border: 1px solid #aaa; padding: 6px; background: #eee; text-align: left;">Ist gesamt</th><th style="border: 1px solid #aaa; padding: 6px; background: #eee; text-align: left;">Saldo</th></tr>';
+            html += '<tr><td style="border: 1px solid #aaa; padding: 6px;">'+monatsSoll.toFixed(2).replace('.', ',')+' h</td><td style="border: 1px solid #aaa; padding: 6px;">'+monatsIst.toFixed(2).replace('.', ',')+' h</td><td style="border: 1px solid #aaa; padding: 6px;">'+monatsSaldo.toFixed(2).replace('.', ',')+' h</td></tr></table>';
 
-            html += '<br><br><br><p>________________________________________<br>Unterschrift Mitarbeiter</p>';
+            html += '<br><br><p style="font-size: 14px;">________________________________________<br>Unterschrift Mitarbeiter</p>';
+            html += '</div>';
 
-            printDiv.innerHTML = html;
+            var tempDiv = document.createElement('div');
+            tempDiv.innerHTML = html;
             
-            // Druck-Dialog öffnen
-            setTimeout(function() {
-                window.print();
-            }, 300);
+            var opt = {
+                margin:       10,
+                filename:     'Arbeitszeit_' + monthNames[displayMonth] + '_' + displayYear + '.pdf',
+                image:        { type: 'jpeg', quality: 0.98 },
+                html2canvas:  { scale: 2 },
+                jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
+            };
+
+            var btn = document.getElementById('btn-pdf');
+            var oldText = btn.textContent;
+            btn.textContent = "PDF wird erstellt...";
+            
+            html2pdf().set(opt).from(tempDiv).save().then(function() {
+                btn.textContent = oldText;
+                alert("Die PDF-Datei wurde erfolgreich heruntergeladen!");
+            }).catch(function(err) {
+                alert("Fehler bei der PDF-Erstellung: " + err);
+                btn.textContent = oldText;
+            });
         }
 
         // --- EMAIL FUNKTION ---
