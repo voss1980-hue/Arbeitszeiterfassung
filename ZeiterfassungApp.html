@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Arbeitszeiterfassung Final</title>
-    <!-- PDF Generator Bibliothek -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <style>
         * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
@@ -25,7 +24,6 @@
         .month-nav button:active { background: #e2e8f0; }
         #month-title { font-size: 1.25em; font-weight: bold; }
 
-        /* NEUE AKTIONSLEISTE FÜR PDF & EMAIL */
         .action-bar { display: flex; justify-content: center; gap: 10px; padding: 0 16px 12px 16px; background: #ffffff; border-bottom: 1px solid #e2e8f0; }
         .btn-action { color: white; border: none; padding: 8px 12px; border-radius: 6px; font-weight: bold; font-size: 0.85em; cursor: pointer; flex: 1; text-align: center; transition: opacity 0.2s; }
         .btn-action:active { opacity: 0.7; }
@@ -75,10 +73,27 @@
         .firma-row { display: flex; gap: 6px; }
         .firma-row select { flex: 1; }
         .btn-firma-edit { background: #4a5568; color: white; border: none; padding: 0 10px; border-radius: 8px; font-weight: bold; cursor: pointer; }
+
+        /* DRUCK- & PDF-LAYOUT */
+        #print-section { display: none; padding: 20px; font-family: Arial, sans-serif; color: black; background: white; }
+        #print-section h2 { margin-top: 0; border-bottom: 2px solid #333; padding-bottom: 5px; }
+        #print-section table { width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 12px; }
+        #print-section th, #print-section td { border: 1px solid #aaa; padding: 6px 8px; text-align: left; }
+        #print-section th { background-color: #eee; font-weight: bold; }
+        #print-section .saldo-table { width: 60%; margin-top: 20px; }
+
+        @media print {
+            html, body { height: auto !important; overflow: visible !important; background: white !important; }
+            .app-wrapper, .modal-overlay, #debug-error { display: none !important; }
+            #print-section { display: block !important; }
+            @page { margin: 1.5cm; }
+        }
     </style>
 </head>
 <body>
     <div id="debug-error" style="display:none; background: #e53e3e; color: white; padding: 20px; z-index: 9999; position: absolute; top:0; left:0; right:0;"></div>
+
+    <div id="print-section"></div>
 
     <div class="app-wrapper">
         <div class="header-container" id="main-header">
@@ -100,7 +115,6 @@
                 </div>
             </div>
 
-            <!-- Aufgeräumte Navigation & Buttons -->
             <div class="month-nav">
                 <button onclick="changeMonth(-1)">&#9664;</button>
                 <div id="month-title">Laden...</div>
@@ -108,8 +122,8 @@
             </div>
             
             <div class="action-bar">
-                <button class="btn-action" id="btn-pdf" style="background: #2980b9;" onclick="generatePDF()">Als PDF speichern</button>
-                <button class="btn-action" style="background: #8e44ad;" onclick="prepareEmail()">Als E-Mail senden</button>
+                <button class="btn-action" id="btn-pdf" style="background: #2980b9;" onclick="generatePDF()">📄 PDF Teilen / Speichern</button>
+                <button class="btn-action" style="background: #8e44ad;" onclick="prepareEmail()">📧 E-Mail Text</button>
             </div>
 
             <div class="month-summary">
@@ -481,7 +495,7 @@
             }, 300);
         }
 
-        // --- NEUER PDF GENERATOR (html2pdf.js) ---
+        // --- NEUER PDF GENERATOR MIT TEILEN FUNKTION FÜR HANDYS ---
         function generatePDF() {
             var defName = settings.mitarbeiterName || "Björn Voss";
             var mName = prompt("Dein Name für den PDF-Bericht:", defName);
@@ -566,9 +580,11 @@
             var tempDiv = document.createElement('div');
             tempDiv.innerHTML = html;
             
+            var pdfName = 'Arbeitszeit_' + monthNames[displayMonth] + '_' + displayYear + '.pdf';
+            
             var opt = {
                 margin:       10,
-                filename:     'Arbeitszeit_' + monthNames[displayMonth] + '_' + displayYear + '.pdf',
+                filename:     pdfName,
                 image:        { type: 'jpeg', quality: 0.98 },
                 html2canvas:  { scale: 2 },
                 jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
@@ -578,19 +594,46 @@
             var oldText = btn.textContent;
             btn.textContent = "PDF wird erstellt...";
             
-            html2pdf().set(opt).from(tempDiv).save().then(function() {
-                btn.textContent = oldText;
-                alert("Die PDF-Datei wurde erfolgreich heruntergeladen!");
-            }).catch(function(err) {
-                alert("Fehler bei der PDF-Erstellung: " + err);
-                btn.textContent = oldText;
+            // Generiere PDF als Blob (Dateiobjekt) anstatt direkt herunterzuladen
+            html2pdf().set(opt).from(tempDiv).output('blob').then(function(pdfBlob) {
+                try {
+                    // Erstelle eine echte Datei aus dem Blob
+                    var file = new File([pdfBlob], pdfName, { type: 'application/pdf' });
+                    
+                    // Prüfen ob das Handy die "Teilen" Funktion unterstützt
+                    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+                        navigator.share({
+                            files: [file],
+                            title: 'Arbeitszeitnachweis',
+                            text: 'Anbei der Arbeitszeitnachweis für ' + monthNames[displayMonth] + ' ' + displayYear + '.'
+                        }).then(function() {
+                            btn.textContent = oldText;
+                        }).catch(function(error) {
+                            console.log('Teilen wurde abgebrochen', error);
+                            btn.textContent = oldText;
+                        });
+                    } else {
+                        // Fallback: Normaler Download, falls Teilen nicht geht
+                        throw new Error("Teilen nicht unterstützt");
+                    }
+                } catch (e) {
+                    var url = window.URL.createObjectURL(pdfBlob);
+                    var a = document.createElement('a');
+                    a.style.display = 'none';
+                    a.href = url;
+                    a.download = pdfName;
+                    document.body.appendChild(a);
+                    a.click();
+                    window.URL.revokeObjectURL(url);
+                    btn.textContent = oldText;
+                }
             });
         }
 
         // --- EMAIL FUNKTION ---
         function prepareEmail() {
             var defMail = settings.chefEmail || "";
-            var mail = prompt("An welche E-Mail-Adresse soll der Bericht gesendet werden?", defMail);
+            var mail = prompt("Bitte prüfe die E-Mail-Adresse für den Textentwurf:", defMail);
             
             if (mail !== null) {
                 settings.chefEmail = mail;
