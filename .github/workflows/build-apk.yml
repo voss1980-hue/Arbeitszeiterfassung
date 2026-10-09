@@ -14,7 +14,7 @@ jobs:
       - name: Code aus Repository laden
         uses: actions/checkout@v4
 
-      - name: Java für Android einrichten
+      - name: Java einrichten
         uses: actions/setup-java@v4
         with:
           distribution: 'zulu'
@@ -25,7 +25,7 @@ jobs:
           mkdir -p android/app/src/main/assets/public
           mkdir -p android/app/src/main/res/mipmap-xxxhdpi
 
-          # HTML-Datei als index.html in den Asset-Ordner kopieren
+          # HTML-Datei als index.html ablegen
           cp ZeiterfassungApp.html android/app/src/main/assets/public/index.html
 
           # Icon einbinden falls vorhanden
@@ -34,22 +34,66 @@ jobs:
             cp icon.png android/app/src/main/res/mipmap-xxxhdpi/ic_launcher_round.png
           fi
 
-      - name: Gradle Wrapper bereitstellen
+      - name: Android Manifest erstellen
         run: |
-          cd android
-          # Erstelle ein einfaches Gradle-Projektgerüst, falls keines existiert
-          if [ ! -f gradlew ]; then
-            echo "Generating gradle wrapper..."
-          fi
+          mkdir -p android/app/src/main
+          cat << 'EOF' > android/app/src/main/AndroidManifest.xml
+          <manifest xmlns:android="http://schemas.android.com/apk/res/android"
+              package="com.bjoernvoss.packzeit">
+              <application
+                  android:allowBackup="true"
+                  android:icon="@mipmap/ic_launcher"
+                  android:label="PackZeit"
+                  android:roundIcon="@mipmap/ic_launcher_round"
+                  android:supportsRtl="true"
+                  android:theme="@android:style/Theme.NoTitleBar">
+                  <activity
+                      android:name=".MainActivity"
+                      android:exported="true">
+                      <intent-filter>
+                          <action android:name="android.intent.action.MAIN" />
+                          <category android:name="android.intent.category.LAUNCHER" />
+                      </intent-filter>
+                  </activity>
+              </application>
+          </manifest>
+          EOF
 
-      - name: APK bauen (Gradle Debug)
+      - name: Gradle Build ausführen
         run: |
           cd android
-          # Wir nutzen einen direkten Build-Befehl über ein minimalistisches Gradle-Setup oder laden den Wrapper
+          # Minimales build.gradle für den Offline-HTML-Container
+          mkdir -p app
+          cat << 'EOF' > build.gradle
+          allprojects {
+              repositories {
+                  google()
+                  mavenCentral()
+              }
+          }
+          EOF
+          cat << 'EOF' > app/build.gradle
+          apply plugin: 'com.android.application'
+          android {
+              compileSdkVersion 33
+              defaultConfig {
+                  applicationId "com.bjoernvoss.packzeit"
+                  minSdkVersion 22
+                  targetSdkVersion 33
+                  versionCode 1
+                  versionName "1.0"
+              }
+          }
+          dependencies {
+              implementation 'androidx.appcompat:appcompat:1.6.1'
+          }
+          EOF
+          
+          # Gradle Wrapper initialisieren und bauen
           gradle wrapper
-          ./gradlew assembleDebug
+          ./gradlew assembleDebug || ./gradlew build
 
-      - name: Fertige APK hochladen
+      - name: APK hochladen
         uses: actions/upload-artifact@v4
         with:
           name: PackZeit-App
