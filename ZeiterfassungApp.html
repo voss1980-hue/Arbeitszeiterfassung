@@ -49,21 +49,24 @@
         .day-desc { font-size: 0.82em; color: #4a5568; margin-top: 3px; }
         .day-hours { font-weight: 700; font-size: 1.15em; text-align: right; width: 30%; }
         .modal-overlay { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.55); align-items: center; justify-content: center; padding: 16px; z-index: 1000; }
-        .modal { background: #ffffff; width: 100%; max-width: 380px; padding: 20px; border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.3); }
+        .modal { background: #ffffff; width: 100%; max-width: 380px; padding: 20px; border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.3); max-height: 90vh; overflow-y: auto; }
         .modal h3 { margin: 0 0 16px 0; color: #2d3748; border-bottom: 2px solid #edf2f7; padding-bottom: 10px; font-size: 1.15em; }
-        .input-group { margin-bottom: 14px; }
-        .input-group label { display: block; margin-bottom: 5px; font-weight: 600; font-size: 0.85em; color: #4a5568; }
-        .input-group select, .input-group input { width: 100%; padding: 11px 12px; border: 1px solid #cbd5e0; border-radius: 8px; font-size: 1em; background: #f7fafc; color: #2d3748; }
+        .input-group { margin-bottom: 12px; }
+        .input-group label { display: block; margin-bottom: 4px; font-weight: 600; font-size: 0.82em; color: #4a5568; }
+        .input-group select, .input-group input, .input-group textarea { width: 100%; padding: 10px; border: 1px solid #cbd5e0; border-radius: 8px; font-size: 0.95em; background: #f7fafc; color: #2d3748; }
         .zeit-wrapper { display: flex; gap: 10px; }
         .zeit-wrapper > div { flex: 1; }
-        .modal-buttons { display: flex; gap: 10px; margin-top: 22px; }
-        .btn-modal { padding: 12px; border: none; border-radius: 8px; font-weight: 700; font-size: 0.95em; cursor: pointer; }
+        .modal-buttons { display: flex; gap: 10px; margin-top: 18px; }
+        .btn-modal { padding: 11px; border: none; border-radius: 8px; font-weight: 700; font-size: 0.9em; cursor: pointer; }
         .btn-close { flex: 1; background: #e2e8f0; color: #4a5568; }
         .btn-save { flex: 2; background: #38a169; color: #ffffff; }
+        .firma-row { display: flex; gap: 6px; }
+        .firma-row select { flex: 1; }
+        .btn-firma-edit { background: #4a5568; color: white; border: none; padding: 0 10px; border-radius: 8px; font-weight: bold; cursor: pointer; }
     </style>
 </head>
 <body>
-    <div id="debug-error" style="display:none; background: #e53e3e; color: white; padding: 20px; z-index: 9999; position: absolute; top:0; left:0; right:0; box-shadow: 0 5px 15px rgba(0,0,0,0.3);"></div>
+    <div id="debug-error" style="display:none; background: #e53e3e; color: white; padding: 20px; z-index: 9999; position: absolute; top:0; left:0; right:0;"></div>
 
     <div class="app-wrapper">
         <div class="header-container" id="main-header">
@@ -87,20 +90,21 @@
 
             <div class="month-nav">
                 <button onclick="changeMonth(-1)">&#9664;</button>
-                <div id="month-title" style="color: #e67e22; font-weight: bold;">Lade neue App...</div>
+                <div id="month-title" style="color: #2c3e50; font-weight: bold;">Monat wird geladen...</div>
                 <button onclick="changeMonth(1)">&#9654;</button>
             </div>
 
             <div class="month-summary">
-                <div><span>Soll (Chef)</span><span class="val-soll" id="m-soll">0,00 h</span></div>
-                <div><span>Ist (Chef)</span><span class="val-ist" id="m-ist">0,00 h</span></div>
-                <div><span>Saldo (Chef)</span><span class="val-saldo" id="m-saldo">0,00 h</span></div>
+                <div><span>Soll</span><span class="val-soll" id="m-soll">0,00 h</span></div>
+                <div><span>Ist</span><span class="val-ist" id="m-ist">0,00 h</span></div>
+                <div><span>Saldo</span><span class="val-saldo" id="m-saldo">0,00 h</span></div>
             </div>
         </div>
 
         <div class="day-list" id="days-list"></div>
     </div>
 
+    <!-- MODAL FÜR TAGESBEARBEITUNG -->
     <div class="modal-overlay" id="day-modal">
         <div class="modal">
             <h3 id="modal-title">Tag bearbeiten</h3>
@@ -132,6 +136,19 @@
                     <label>Pause (in Stunden)</label>
                     <input type="number" step="0.25" id="edit-pause" value="0.5">
                 </div>
+                
+                <div class="input-group">
+                    <label>Einsatzort / Firma</label>
+                    <div class="firma-row">
+                        <select id="edit-firma"></select>
+                        <button type="button" class="btn-firma-edit" onclick="editFirmenListe()">⚙️</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="input-group">
+                <label>Tagesnotiz</label>
+                <textarea id="edit-notiz" rows="2" placeholder="Notiz zum Tag..."></textarea>
             </div>
 
             <div class="modal-buttons">
@@ -142,29 +159,26 @@
     </div>
 
     <script>
-        window.onerror = function(msg, url, line, col, error) {
-            var errDiv = document.getElementById('debug-error');
-            errDiv.style.display = 'block';
-            errDiv.innerHTML = "<h3>Kritischer Fehler!</h3><p>" + msg + "</p><p>Zeile: " + line + "</p><button onclick='localStorage.clear(); location.reload();' style='margin-top:10px; padding:10px; background:white; color:red; border:none; border-radius:5px; font-weight:bold;'>Speicher radikal löschen</button>";
-            return false;
-        };
-
         var data = {};
         var settings = { startUeberstunden: 0, ausbezahlt: 0, urlaub: 30 };
+        var firmenListe = ["Firma A", "Firma B", "Baustelle X", "Werkstatt"];
         var currentDate, displayYear, displayMonth, editKey;
 
         function initApp() {
             try {
-                var savedData = localStorage.getItem('zeiterfassung_data_v2');
+                var savedData = localStorage.getItem('zeiterfassung_data_v3');
                 if (savedData) data = JSON.parse(savedData);
 
-                var savedSettings = localStorage.getItem('zeiterfassung_settings_v2');
+                var savedSettings = localStorage.getItem('zeiterfassung_settings_v3');
                 if (savedSettings) {
                     var s = JSON.parse(savedSettings);
                     settings.startUeberstunden = Number(s.startUeberstunden) || 0;
                     settings.ausbezahlt = Number(s.ausbezahlt) || 0;
                     settings.urlaub = s.urlaub !== undefined ? Number(s.urlaub) : 30;
                 }
+
+                var savedFirmen = localStorage.getItem('zeiterfassung_firmen_v3');
+                if (savedFirmen) firmenListe = JSON.parse(savedFirmen);
             } catch(e) {
                 console.error(e);
             }
@@ -178,8 +192,34 @@
             scrollToHeute();
         }
 
-        function saveSettings() { localStorage.setItem('zeiterfassung_settings_v2', JSON.stringify(settings)); }
-        function saveData() { localStorage.setItem('zeiterfassung_data_v2', JSON.stringify(data)); }
+        function saveSettings() { localStorage.setItem('zeiterfassung_settings_v3', JSON.stringify(settings)); }
+        function saveData() { localStorage.setItem('zeiterfassung_data_v3', JSON.stringify(data)); }
+        function saveFirmen() { localStorage.setItem('zeiterfassung_firmen_v3', JSON.stringify(firmenListe)); }
+
+        function updateFirmenDropdown(selectedFirma) {
+            var select = document.getElementById('edit-firma');
+            select.innerHTML = '<option value="">-- Kein Ort angegeben --</option>';
+            for (var i = 0; i < firmenListe.length; i++) {
+                var f = firmenListe[i];
+                var sel = (f === selectedFirma) ? 'selected' : '';
+                select.innerHTML += '<option value="' + f + '" ' + sel + '>' + f + '</option>';
+            }
+        }
+
+        function editFirmenListe() {
+            var akt = prompt("Bearbeite deine Firmen/Einsatzorte (mit Komma getrennt):", firmenListe.join(", "));
+            if (akt !== null) {
+                var teile = akt.split(',');
+                firmenListe = [];
+                for (var i = 0; i < teile.length; i++) {
+                    var trimmed = teile[i].trim();
+                    if (trimmed !== "") firmenListe.push(trimmed);
+                }
+                saveFirmen();
+                var aktuellesSelect = document.getElementById('edit-firma').value;
+                updateFirmenDropdown(aktuellesSelect);
+            }
+        }
 
         function render() {
             var globalOvertime = Number(settings.startUeberstunden) - Number(settings.ausbezahlt);
@@ -211,9 +251,7 @@
             document.getElementById('g-urlaub').textContent = globalUrlaub;
 
             var monthNames = ["Januar", "Februar", "März", "April", "Mai", "Juni", "Juli", "August", "September", "Oktober", "November", "Dezember"];
-            
             document.getElementById('month-title').textContent = monthNames[displayMonth] + " " + displayYear;
-            document.getElementById('month-title').style.color = "#2c3e50"; 
 
             var daysInMonth = new Date(displayYear, displayMonth + 1, 0).getDate();
             var monatsSoll = 0;
@@ -238,35 +276,40 @@
                 var badgeHtml = "";
 
                 if (entry && typeof entry === 'object') {
+                    var zusatzInfo = [];
+                    if (entry.firma) zusatzInfo.push("📍 " + entry.firma);
+                    if (entry.notiz) zusatzInfo.push("📝 " + entry.notiz);
+                    var infoStr = zusatzInfo.length > 0 ? " (" + zusatzInfo.join(" | ") + ")" : "";
+
                     if (entry.typ === 'arbeit') {
                         tagesIst = Number(entry.ist) || 0;
                         statusClass = "status-arbeit";
-                        anzeigeText = (entry.start || '??:??') + " - " + (entry.end || '??:??') + " Uhr (" + (entry.pause || 0) + "h Pause)";
-                        badgeHtml = "<span class='badge-typ badge-arbeit'>Arbeit</span>";
+                        anzeigeText = (entry.start || '??:??') + " - " + (entry.end || '??:??') + " Uhr (" + (entry.pause || 0) + "h Pause)" + infoStr;
+                        badgeHtml = '<span class="badge-typ badge-arbeit">Arbeit</span>';
                         colorHours = "#2d3748";
                     } else if (entry.typ === 'urlaub') {
                         if (!isWeekend) tagesIst = 8.0;
                         statusClass = "status-urlaub";
-                        anzeigeText = "Urlaub (8,0h | neutral)";
-                        badgeHtml = "<span class='badge-typ badge-urlaub'>Urlaub</span>";
+                        anzeigeText = "Urlaub (8,0h | neutral)" + infoStr;
+                        badgeHtml = '<span class="badge-typ badge-urlaub">Urlaub</span>';
                         colorHours = "#38a169";
                     } else if (entry.typ === 'krank') {
                         if (!isWeekend) tagesIst = 8.0;
                         statusClass = "status-krank";
-                        anzeigeText = "Krank (8,0h | neutral)";
-                        badgeHtml = "<span class='badge-typ badge-krank'>Krank</span>";
+                        anzeigeText = "Krank (8,0h | neutral)" + infoStr;
+                        badgeHtml = '<span class="badge-typ badge-krank">Krank</span>';
                         colorHours = "#dd6b20";
                     } else if (entry.typ === 'feiertag') {
                         if (!isWeekend) tagesIst = 8.0;
                         statusClass = "status-feiertag";
-                        anzeigeText = "Feiertag (8,0h | neutral)";
-                        badgeHtml = "<span class='badge-typ badge-feiertag'>Feiertag</span>";
+                        anzeigeText = "Feiertag (8,0h | neutral)" + infoStr;
+                        badgeHtml = '<span class="badge-typ badge-feiertag">Feiertag</span>';
                         colorHours = "#805ad5";
                     } else if (entry.typ === 'abbau') {
                         if (!isWeekend) tagesIst = 8.5;
                         statusClass = "status-abbau";
-                        anzeigeText = "Überstundenabbau (-8,5h)";
-                        badgeHtml = "<span class='badge-typ badge-abbau'>Abbau</span>";
+                        anzeigeText = "Überstundenabbau (-8,5h)" + infoStr;
+                        badgeHtml = '<span class="badge-typ badge-abbau">Abbau</span>';
                         colorHours = "#319795";
                     }
                 }
@@ -276,13 +319,12 @@
                 var wochentage = ["So", "Mo", "Di", "Mi", "Do", "Fr", "Sa"];
                 var isHeute = (currentDate.getDate() === i && currentDate.getMonth() === displayMonth && currentDate.getFullYear() === displayYear);
                 var heuteClass = isHeute ? "heute" : "";
-                var heuteBadge = isHeute ? "<span class='badge-heute'>HEUTE</span>" : "";
+                var heuteBadge = isHeute ? '<span class="badge-heute">HEUTE</span>' : "";
 
                 var dateString = wochentage[dayOfWeek] + ", " + String(i).padStart(2, '0') + "." + String(displayMonth + 1).padStart(2, '0') + ".";
                 var modalDateString = wochentage[dayOfWeek] + ", " + String(i).padStart(2, '0') + ". " + monthNames[displayMonth];
 
-                // Sauber verschachtelte Strings ohne Syntax-Fehler!
-                dayListHtml += '<div class="day-row ' + statusClass + ' ' + heuteClass + '" onclick="openModal(\'' + key + '\', \'' + modalDateString + '\')">';
+                dayListHtml += '<div class="day-row ' + statusClass + ' ' + heuteClass + '" onclick="openModal('' + key + '', '' + modalDateString + '')">';
                 dayListHtml += '<div class="day-info">';
                 dayListHtml += '<span class="day-date">' + dateString + heuteBadge + '</span>';
                 dayListHtml += '<div style="margin-top: 3px;">' + badgeHtml + '<span class="day-desc">' + anzeigeText + '</span></div>';
@@ -345,11 +387,15 @@
                 document.getElementById('edit-start').value = entry.start || '06:30';
                 document.getElementById('edit-end').value = entry.end || '15:30';
                 document.getElementById('edit-pause').value = entry.pause !== undefined ? entry.pause : 0.5;
+                document.getElementById('edit-notiz').value = entry.notiz || '';
+                updateFirmenDropdown(entry.firma || '');
             } else {
                 document.getElementById('edit-typ').value = 'keine';
                 document.getElementById('edit-start').value = '06:30';
                 document.getElementById('edit-end').value = '15:30';
                 document.getElementById('edit-pause').value = 0.5;
+                document.getElementById('edit-notiz').value = '';
+                updateFirmenDropdown('');
             }
             toggleZeitFields();
             document.getElementById('day-modal').style.display = 'flex';
@@ -364,8 +410,10 @@
 
         function saveDay() {
             var typ = document.getElementById('edit-typ').value;
+            var notiz = document.getElementById('edit-notiz').value.trim();
+            var firma = document.getElementById('edit-firma').value;
 
-            if (typ === 'keine') {
+            if (typ === 'keine' && notiz === '') {
                 delete data[editKey];
             } else {
                 var start = document.getElementById('edit-start').value;
@@ -379,7 +427,15 @@
 
                 var ist = Math.max(0, eDez - sDez - pause);
 
-                data[editKey] = { typ: typ, start: start, end: end, pause: pause, ist: ist };
+                data[editKey] = { 
+                    typ: typ, 
+                    start: start, 
+                    end: end, 
+                    pause: pause, 
+                    ist: ist,
+                    firma: firma,
+                    notiz: notiz
+                };
             }
 
             saveData();
@@ -399,7 +455,6 @@
             }, 300);
         }
 
-        // START!
         initApp();
     </script>
 </body>
