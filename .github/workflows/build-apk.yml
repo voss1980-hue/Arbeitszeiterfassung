@@ -1,0 +1,61 @@
+name: Build PackZeit APK
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ "main", "master" ]
+
+jobs:
+  build:
+    name: APK kompilieren
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Code aus Repository laden
+        uses: actions/checkout@v4
+
+      - name: Node.js Umgebung einrichten
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Java für Android einrichten
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: '17'
+
+      - name: Capacitor App vorbereiten
+        run: |
+          mkdir -p www
+          cp ZeiterfassungApp.html www/index.html
+          
+          npm init -y
+          npm install @capacitor/core @capacitor/cli @capacitor/android
+          npx cap init "PackZeit" "com.bjoernvoss.packzeit" --web-dir www
+          npx cap add android
+
+      - name: Eigene App-Icons einbauen
+        run: |
+          if [ -f icon.png ]; then
+            npm install -D @capacitor/assets
+            mkdir -p assets
+            cp icon.png assets/icon.png
+            cp icon.png assets/splash.png
+            npx capacitor-assets generate --android
+          else
+            echo "Keine icon.png gefunden, nutze Standard-Icon."
+          fi
+
+      - name: APK bauen (Gradle)
+        run: |
+          cd android
+          chmod +x gradlew
+          ./gradlew assembleDebug
+
+      - name: Fertige APK hochladen
+        uses: actions/upload-artifact@v4
+        with:
+          name: PackZeit-App
+          path: android/app/build/outputs/apk/debug/app-debug.apk
+          
