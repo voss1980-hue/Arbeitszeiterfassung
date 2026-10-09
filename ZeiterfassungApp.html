@@ -90,7 +90,7 @@
 
             <div class="month-nav">
                 <button onclick="changeMonth(-1)">&#9664;</button>
-                <div id="month-title" style="color: #2c3e50; font-weight: bold;">Monat wird geladen...</div>
+                <div id="month-title" style="color: #2c3e50; font-weight: bold;">Laden...</div>
                 <button onclick="changeMonth(1)">&#9654;</button>
             </div>
 
@@ -104,7 +104,6 @@
         <div class="day-list" id="days-list"></div>
     </div>
 
-    <!-- MODAL FÜR TAGESBEARBEITUNG -->
     <div class="modal-overlay" id="day-modal">
         <div class="modal">
             <h3 id="modal-title">Tag bearbeiten</h3>
@@ -159,6 +158,12 @@
     </div>
 
     <script>
+        window.onerror = function(msg, url, line) {
+            var errDiv = document.getElementById('debug-error');
+            errDiv.style.display = 'block';
+            errDiv.innerHTML = "<h3>Fehler:</h3><p>" + msg + " (Zeile " + line + ")</p>";
+        };
+
         var data = {};
         var settings = { startUeberstunden: 0, ausbezahlt: 0, urlaub: 30 };
         var firmenListe = ["Firma A", "Firma B", "Baustelle X", "Werkstatt"];
@@ -324,7 +329,7 @@
                 var dateString = wochentage[dayOfWeek] + ", " + String(i).padStart(2, '0') + "." + String(displayMonth + 1).padStart(2, '0') + ".";
                 var modalDateString = wochentage[dayOfWeek] + ", " + String(i).padStart(2, '0') + ". " + monthNames[displayMonth];
 
-                dayListHtml += '<div class="day-row ' + statusClass + ' ' + heuteClass + '" onclick="openModal('' + key + '', '' + modalDateString + '')">';
+                dayListHtml += '<div class="day-row ' + statusClass + ' ' + heuteClass + '" onclick="openModal(\'' + key + '\', \'' + modalDateString + '\')">';
                 dayListHtml += '<div class="day-info">';
                 dayListHtml += '<span class="day-date">' + dateString + heuteBadge + '</span>';
                 dayListHtml += '<div style="margin-top: 3px;">' + badgeHtml + '<span class="day-desc">' + anzeigeText + '</span></div>';
@@ -427,6 +432,16 @@
 
                 var ist = Math.max(0, eDez - sDez - pause);
 
+                data[editKey] = { 
+                    typ: typ, 
+                    start: start, 
+                    end: -end ? end : end, 
+                    pause: pause, 
+                    ist: ist,
+                    firma: firma,
+                    notiz: notiz
+                };
+                // Fix syntax above properly
                 data[editKey] = { 
                     typ: typ, 
                     start: start, 
