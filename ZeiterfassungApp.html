@@ -63,11 +63,30 @@
         .firma-row { display: flex; gap: 6px; }
         .firma-row select { flex: 1; }
         .btn-firma-edit { background: #4a5568; color: white; border: none; padding: 0 10px; border-radius: 8px; font-weight: bold; cursor: pointer; }
+
+        /* DRUCK- & PDF-LAYOUT */
+        #print-section { display: none; padding: 20px; font-family: Arial, sans-serif; color: black; background: white; }
+        #print-section h2 { margin-top: 0; border-bottom: 2px solid #333; padding-bottom: 5px; }
+        #print-section table { width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 12px; }
+        #print-section th, #print-section td { border: 1px solid #aaa; padding: 6px 8px; text-align: left; }
+        #print-section th { background-color: #eee; font-weight: bold; }
+        #print-section .saldo-table { width: 60%; margin-top: 20px; }
+
+        @media print {
+            html, body { height: auto !important; overflow: visible !important; background: white !important; }
+            .app-wrapper, .modal-overlay, #debug-error { display: none !important; }
+            #print-section { display: block !important; }
+            @page { margin: 1.5cm; }
+        }
     </style>
 </head>
 <body>
     <div id="debug-error" style="display:none; background: #e53e3e; color: white; padding: 20px; z-index: 9999; position: absolute; top:0; left:0; right:0;"></div>
 
+    <!-- ANSICHT FÜR PDF/DRUCK -->
+    <div id="print-section"></div>
+
+    <!-- NORMALE APP -->
     <div class="app-wrapper">
         <div class="header-container" id="main-header">
             <div class="global-stats">
@@ -90,7 +109,13 @@
 
             <div class="month-nav">
                 <button onclick="changeMonth(-1)">&#9664;</button>
-                <div id="month-title" style="color: #2c3e50; font-weight: bold;">Laden...</div>
+                <div style="display: flex; flex-direction: column; align-items: center; gap: 4px;">
+                    <div id="month-title" style="color: #2c3e50; font-weight: bold;">Laden...</div>
+                    <div style="display: flex; gap: 5px;">
+                        <button class="btn-small" style="background: #2980b9;" onclick="printMonth()">📄 PDF</button>
+                        <button class="btn-small" style="background: #8e44ad;" onclick="prepareEmail()">📧 E-Mail</button>
+                    </div>
+                </div>
                 <button onclick="changeMonth(1)">&#9654;</button>
             </div>
 
@@ -104,6 +129,7 @@
         <div class="day-list" id="days-list"></div>
     </div>
 
+    <!-- MODAL -->
     <div class="modal-overlay" id="day-modal">
         <div class="modal">
             <h3 id="modal-title">Tag bearbeiten</h3>
@@ -165,7 +191,7 @@
         };
 
         var data = {};
-        var settings = { startUeberstunden: 0, ausbezahlt: 0, urlaub: 30 };
+        var settings = { startUeberstunden: 0, ausbezahlt: 0, urlaub: 30, mitarbeiterName: "Björn Voss", chefEmail: "" };
         var firmenListe = ["Firma A", "Firma B", "Baustelle X", "Werkstatt"];
         var currentDate, displayYear, displayMonth, editKey;
 
@@ -180,6 +206,8 @@
                     settings.startUeberstunden = Number(s.startUeberstunden) || 0;
                     settings.ausbezahlt = Number(s.ausbezahlt) || 0;
                     settings.urlaub = s.urlaub !== undefined ? Number(s.urlaub) : 30;
+                    settings.mitarbeiterName = s.mitarbeiterName || "Björn Voss";
+                    settings.chefEmail = s.chefEmail || "";
                 }
 
                 var savedFirmen = localStorage.getItem('zeiterfassung_firmen_v3');
@@ -435,16 +463,6 @@
                 data[editKey] = { 
                     typ: typ, 
                     start: start, 
-                    end: -end ? end : end, 
-                    pause: pause, 
-                    ist: ist,
-                    firma: firma,
-                    notiz: notiz
-                };
-                // Fix syntax above properly
-                data[editKey] = { 
-                    typ: typ, 
-                    start: start, 
                     end: end, 
                     pause: pause, 
                     ist: ist,
@@ -468,6 +486,114 @@
                     listContainer.scrollTop = listContainer.scrollTop + (elementTop - containerTop) - 15;
                 }
             }, 300);
+        }
+
+        // --- PDF / DRUCK FUNKTION ---
+        function printMonth() {
+            var defName = settings.mitarbeiterName || "Björn Voss";
+            var mName = prompt("Dein Name für den PDF-Bericht:", defName);
+            if (mName !== null) {
+                settings.mitarbeiterName = mName;
+                saveSettings();
+            } else {
+                return; // Abbruch
+            }
+
+            var printDiv = document.getElementById('print-section');
+            var monthNames = ["Januar", "Februar", "März", "April", "Mai", "Juni", "Juli", "August", "September", "Oktober", "November", "Dezember"];
+            var wochentage = ["So", "Mo", "Di", "Mi", "Do", "Fr", "Sa"];
+            
+            var currentOt = document.getElementById('g-ueberstunden').textContent;
+            var currentUrlaub = document.getElementById('g-urlaub').textContent;
+
+            // Kopfbereich PDF
+            var html = '<h2>Arbeitszeitnachweis</h2>';
+            html += '<p><strong>Firma:</strong> Dahl-Verpackungen<br>';
+            html += '<strong>Mitarbeiter:</strong> ' + settings.mitarbeiterName + '<br>';
+            html += '<strong>Monat:</strong> ' + monthNames[displayMonth] + ' ' + displayYear + '</p>';
+            
+            // Neuer Block für Urlaub und Überstundenkonto
+            html += '<div style="background:#eee; padding:10px; margin-bottom:15px; border:1px solid #ccc; font-size:14px;">';
+            html += '<strong>Aktueller Stand (Gesamt):</strong><br>';
+            html += 'Überstundenkonto: ' + currentOt + ' | Resturlaub: ' + currentUrlaub + ' Tage';
+            html += '</div>';
+
+            // Tabelle Start
+            html += '<table><tr><th>Datum</th><th>Status</th><th>Zeit</th><th>Ist (h)</th><th>Ort / Notiz</th></tr>';
+
+            var daysInMonth = new Date(displayYear, displayMonth + 1, 0).getDate();
+            var monatsSoll = 0;
+            var monatsIst = 0;
+
+            for (var i = 1; i <= daysInMonth; i++) {
+                var d = new Date(displayYear, displayMonth, i);
+                var dayOfWeek = d.getDay();
+                var isWeekend = (dayOfWeek === 0 || dayOfWeek === 6);
+                var tagesSoll = isWeekend ? 0 : 8.5;
+                monatsSoll += tagesSoll;
+
+                var key = displayYear + "-" + String(displayMonth + 1).padStart(2, '0') + "-" + String(i).padStart(2, '0');
+                var entry = data[key];
+
+                var dateStr = wochentage[dayOfWeek] + ', ' + String(i).padStart(2, '0') + '.' + String(displayMonth + 1).padStart(2, '0') + '.';
+                var statusStr = isWeekend ? 'Wochenende' : '-';
+                var zeitStr = '-';
+                var istStr = '0,00';
+                var infoStr = '';
+
+                if (entry) {
+                    if (entry.typ === 'arbeit') {
+                        statusStr = 'Arbeit';
+                        zeitStr = (entry.start || '??') + ' - ' + (entry.end || '??') + ' (-' + (entry.pause||0) + 'h)';
+                        istStr = (Number(entry.ist) || 0).toFixed(2).replace('.', ',');
+                    } else if (entry.typ === 'urlaub') { statusStr = 'Urlaub'; istStr = '8,00'; }
+                    else if (entry.typ === 'krank') { statusStr = 'Krank'; istStr = '8,00'; }
+                    else if (entry.typ === 'feiertag') { statusStr = 'Feiertag'; istStr = '8,00'; }
+                    else if (entry.typ === 'abbau') { statusStr = 'Abbau'; istStr = '8,50'; }
+
+                    var infos = [];
+                    if(entry.firma) infos.push(entry.firma);
+                    if(entry.notiz) infos.push(entry.notiz);
+                    infoStr = infos.join(' | ');
+                }
+
+                monatsIst += (istStr !== '0,00' ? parseFloat(istStr.replace(',', '.')) : 0);
+
+                html += '<tr><td>'+dateStr+'</td><td>'+statusStr+'</td><td>'+zeitStr+'</td><td>'+istStr+'</td><td>'+infoStr+'</td></tr>';
+            }
+
+            var monatsSaldo = monatsIst - monatsSoll;
+
+            // Tabelle Ende + Zusammenfassung
+            html += '</table>';
+            html += '<table class="saldo-table"><tr><th>Soll gesamt</th><th>Ist gesamt</th><th>Saldo</th></tr>';
+            html += '<tr><td>'+monatsSoll.toFixed(2).replace('.', ',')+' h</td><td>'+monatsIst.toFixed(2).replace('.', ',')+' h</td><td>'+monatsSaldo.toFixed(2).replace('.', ',')+' h</td></tr></table>';
+
+            html += '<br><br><br><p>________________________________________<br>Unterschrift Mitarbeiter</p>';
+
+            printDiv.innerHTML = html;
+            
+            // Druck-Dialog öffnen
+            setTimeout(function() {
+                window.print();
+            }, 300);
+        }
+
+        // --- EMAIL FUNKTION ---
+        function prepareEmail() {
+            var defMail = settings.chefEmail || "";
+            var mail = prompt("An welche E-Mail-Adresse soll der Bericht gesendet werden?", defMail);
+            
+            if (mail !== null) {
+                settings.chefEmail = mail;
+                saveSettings();
+                
+                var monthName = document.getElementById('month-title').textContent;
+                var subject = encodeURIComponent("Arbeitszeitnachweis " + settings.mitarbeiterName + " - " + monthName);
+                var body = encodeURIComponent("Hallo,\n\nanbei sende ich meinen aktuellen Arbeitszeitnachweis als PDF.\n\nViele Grüße\n" + settings.mitarbeiterName);
+                
+                window.location.href = "mailto:" + mail + "?subject=" + subject + "&body=" + body;
+            }
         }
 
         initApp();
