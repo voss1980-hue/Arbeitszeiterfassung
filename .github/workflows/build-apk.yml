@@ -20,12 +20,12 @@ jobs:
           distribution: 'zulu'
           java-version: '17'
 
-      - name: Android Projektstruktur aufbauen
+      - name: Projektstruktur aufbauen und index.html anlegen
         run: |
           mkdir -p android/app/src/main/assets/public
           mkdir -p android/app/src/main/res/mipmap-xxxhdpi
 
-          # HTML-Datei als index.html ablegen
+          # Wichtig: ZeiterfassungApp.html wird als index.html für die App kopiert
           cp ZeiterfassungApp.html android/app/src/main/assets/public/index.html
 
           # Icon einbinden falls vorhanden
@@ -62,7 +62,6 @@ jobs:
       - name: Gradle Build ausführen
         run: |
           cd android
-          # Minimales build.gradle für den Offline-HTML-Container
           mkdir -p app
           cat << 'EOF' > build.gradle
           allprojects {
@@ -89,11 +88,10 @@ jobs:
           }
           EOF
           
-          # Gradle Wrapper initialisieren und bauen
           gradle wrapper
-          ./gradlew assembleDebug || ./gradlew build
+          ./gradlew assembleDebug
 
-      - name: APK hochladen
+      - name: Fertige APK hochladen
         uses: actions/upload-artifact@v4
         with:
           name: PackZeit-App
